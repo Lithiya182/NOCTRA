@@ -1,0 +1,14 @@
+fastapi>=0.115
+uvicorn[standard]>=0.34
+python-dotenv>=1.0
+pydantic>=2.10
+scikit-learn>=1.6
+numpy>=2.0
+pandas>=2.2
+haversine>=2.8
+twilio>=9.1
+pywebpush>=2.0
+cryptography>=44
+requests>=2.32
+pytest>=8.3
+httpx>=0.28
