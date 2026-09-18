@@ -40,7 +40,7 @@ class ClassResult:
 def _active_on_last_passes(
     lat: float, lon: float, rows: list[dict], pass_dates: list[str]
 ) -> tuple[set[str], int, int]:
-    """Rows within ~1km of the site. Returns (dates active, active-on-last-5, consecutive)."""
+    """Rows within ~1km of the site. Returns (dates active, active-on-last-5, max-consecutive-streak)."""
     nearby_dates: set[str] = set()
     for r in rows:
         if haversine((lat, lon), (r["latitude"], r["longitude"]), unit=M) <= CLUSTER_RADIUS_M:
@@ -48,12 +48,16 @@ def _active_on_last_passes(
     last5 = pass_dates[-5:]
     active_on = len(nearby_dates & set(last5))
 
+    # Compute maximum consecutive calendar-day streak anywhere in the observation window.
+    # This matches the PS "short-lived" definition for agricultural burns.
     consec = 0
-    for d in sorted(pass_dates, reverse=True):
+    current_streak = 0
+    for d in sorted(pass_dates):
         if d in nearby_dates:
-            consec += 1
+            current_streak += 1
+            consec = max(consec, current_streak)
         else:
-            break
+            current_streak = 0
     return nearby_dates, active_on, consec
 
 

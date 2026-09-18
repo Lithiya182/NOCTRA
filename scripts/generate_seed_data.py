@@ -59,7 +59,7 @@ def _row(lat, lon, ti4, ti5, acq_date, acq_time, conf, frp, sat=None) -> dict:
         "version": FIRMS_VERSION,
         "bright_ti5": round(ti5, 2),
         "frp": round(frp, 2),
-        "daynight": "D" if acq_time < "1200" else "D",
+        "daynight": "D" if acq_time < "1200" else "N",
     }
 
 
