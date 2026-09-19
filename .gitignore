@@ -8,8 +8,14 @@ build/
 data/*.db
 data/*.db-wal
 data/*.db-shm
+data/firms_real.csv
 *.log
 .coverage
 .pytest_cache/
 validation/
 audit/
+data/firms_history_*.csv
+data/firms_seed.csv
+models/*.pkl
+data/firms_seed.csv
+data/ml_expansion_features.csv
