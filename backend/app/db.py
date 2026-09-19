@@ -110,6 +110,8 @@ def init_schema(conn: sqlite3.Connection) -> None:
         CREATE INDEX IF NOT EXISTS idx_det_date ON detections(acq_date);
         CREATE INDEX IF NOT EXISTS idx_sites_class ON sites(classification);
         CREATE INDEX IF NOT EXISTS idx_alerts_status ON alerts(status);
+        CREATE UNIQUE INDEX IF NOT EXISTS uq_detection_natural_key
+            ON detections(latitude, longitude, acq_date, acq_time, satellite);
         """
     )
     conn.commit()
@@ -124,6 +126,38 @@ def reset_all() -> None:
             "DELETE FROM alerts; DELETE FROM needs; DELETE FROM push_subscriptions; "
             "DELETE FROM sites; DELETE FROM polygons;"
         )
+        conn.commit()
+
+
+def reset_synthetic_only() -> None:
+    """Delete only synthetic detections and all derived tables.
+    Real detections (is_synthetic=0) are preserved.
+    Derived tables (sites, site_detections, alerts, needs) are cleared and will be rebuilt.
+    Polygons and push_subscriptions are preserved.
+    """
+    conn = get_conn()
+    with _lock:
+        # Delete synthetic detections only
+        conn.execute("DELETE FROM detections WHERE is_synthetic = 1")
+        # Clear all derived tables (they will be rebuilt from remaining real + new synthetic)
+        conn.execute("DELETE FROM site_detections")
+        conn.execute("DELETE FROM sites")
+        conn.execute("DELETE FROM alerts")
+        conn.execute("DELETE FROM needs")
+        # Preserve: polygons, push_subscriptions, real detections
+        conn.commit()
+
+
+def reset_derived_tables() -> None:
+    """Clear only derived tables (sites, site_detections, alerts, needs).
+    Preserves all detections (real + synthetic) and polygons/push_subscriptions.
+    """
+    conn = get_conn()
+    with _lock:
+        conn.execute("DELETE FROM site_detections")
+        conn.execute("DELETE FROM sites")
+        conn.execute("DELETE FROM alerts")
+        conn.execute("DELETE FROM needs")
         conn.commit()
 
 

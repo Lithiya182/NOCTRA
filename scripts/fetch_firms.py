@@ -60,7 +60,7 @@ def main() -> None:
     if not all_rows:
         print("No data fetched.")
         return
-    out = DATA / "firms_seed.csv"
+    out = DATA / "firms_real.csv"
     with open(out, "w", newline="", encoding="utf-8") as f:
         writer = csv.DictWriter(f, fieldnames=HEADERS)
         writer.writeheader()

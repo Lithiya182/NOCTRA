@@ -26,6 +26,9 @@ TWILIO_AUTH_TOKEN = os.getenv("TWILIO_AUTH_TOKEN", "")
 TWILIO_FROM_NUMBER = os.getenv("TWILIO_FROM_NUMBER", "")
 TWILIO_TO_NUMBER = os.getenv("TWILIO_TO_NUMBER", "")
 
+# Data paths
+FIRMS_REAL_CSV = DATA_DIR / "firms_real.csv"
+
 # Rule-based classifier thresholds (locked by the PS).
 IND_DIST_M = 500          # max distance to industrial polygon -> industrial
 AGR_MONTHS = {4, 5, 10, 11}

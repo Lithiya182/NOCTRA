@@ -4,6 +4,7 @@ from __future__ import annotations
 import csv
 import json
 import sys
+from datetime import datetime, timezone
 from pathlib import Path
 
 sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
@@ -12,6 +13,7 @@ from fastapi.testclient import TestClient  # noqa: E402
 
 from app import db, ml_model  # noqa: E402
 from app.config import FIRMS_CSV  # noqa: E402
+from app.ingest import ingest  # noqa: E402
 from app.main import app  # noqa: E402
 
 CONTRACT_FIELDS = [
@@ -144,3 +146,103 @@ def test_ml_weak_label_layer():
     sites = [dict(r) for r in db.query("SELECT * FROM sites")]
     preds = ml_model.predict(sites[0])
     assert preds in {"industrial_fire", "agricultural_burn", "wildfire", "other"}
+
+
+def test_synthetic_reset_preserves_real_rows():
+    """Regression test: synthetic reset must preserve real FIRMS rows.
+    Simulates the critical failure mode: real data disappearing after backend restart.
+    """
+    # A. Start with existing synthetic dataset (TestClient triggers ingest on startup)
+    c = _client()
+    n_dets_before = db.query("SELECT COUNT(*) AS c FROM detections")[0]["c"]
+    n_real_before = db.query("SELECT COUNT(*) AS c FROM detections WHERE is_synthetic = 0")[0]["c"]
+    n_syn_before = db.query("SELECT COUNT(*) AS c FROM detections WHERE is_synthetic = 1")[0]["c"]
+    assert n_real_before == 0, "test assumes no real rows initially"
+    assert n_syn_before > 0, "synthetic seed data should exist"
+
+    # B. Insert one clearly identifiable test detection with is_synthetic=0
+    test_lat, test_lon = 12.34567, 98.76543  # unique coordinate not in seed data
+    test_batch = "test_real_reset"
+    now = datetime.now(timezone.utc).isoformat(timespec="seconds")
+    db.execute(
+        """INSERT INTO detections (latitude, longitude, bright_ti4, scan, track, acq_date,
+           acq_time, satellite, instrument, confidence, version, bright_ti5, frp, daynight,
+           is_synthetic, source, ingestion_batch)
+           VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)""",
+        (test_lat, test_lon, 300.0, 0.4, 0.4, "2025-11-10", "1200",
+         "NOAA-20", "VIIRS", 90.0, "10.1.1_NRT", 290.0, 50.0, "D",
+         0, "firms", test_batch),
+    )
+    test_det_id = db.query("SELECT last_insert_rowid() AS id")[0]["id"]
+
+    # Verify real row inserted
+    n_real_after_insert = db.query("SELECT COUNT(*) AS c FROM detections WHERE is_synthetic = 0")[0]["c"]
+    assert n_real_after_insert == 1
+
+    # C. Run the synthetic reset path (what happens on backend restart)
+    summary = ingest(reset=True)
+
+    # D. Confirm:
+    # - the real test detection still exists
+    n_real_after_reset = db.query("SELECT COUNT(*) AS c FROM detections WHERE is_synthetic = 0")[0]["c"]
+    assert n_real_after_reset == 1, f"real detection lost after reset (count={n_real_after_reset})"
+
+    # Verify it's the same row
+    real_row = db.query(
+        "SELECT * FROM detections WHERE is_synthetic = 0 AND ingestion_batch = ?",
+        (test_batch,),
+    )
+    assert len(real_row) == 1
+    assert real_row[0]["latitude"] == test_lat
+    assert real_row[0]["longitude"] == test_lon
+    assert real_row[0]["source"] == "firms"
+    assert real_row[0]["ingestion_batch"] == test_batch
+
+    # - synthetic seed data was correctly reseeded
+    n_syn_after_reset = db.query("SELECT COUNT(*) AS c FROM detections WHERE is_synthetic = 1")[0]["c"]
+    assert n_syn_after_reset == 424, f"synthetic reseed failed: expected 424, got {n_syn_after_reset}"
+
+    # - there are no stale derived records
+    # All sites should be rebuilt from the combined (real + synthetic) detections
+    # The real detection is far from seed regions, so it should form its own site
+    real_site = db.query(
+        "SELECT s.* FROM sites s "
+        "JOIN site_detections sd ON s.site_id = sd.site_id "
+        "JOIN detections d ON sd.detection_id = d.id "
+        "WHERE d.is_synthetic = 0 AND d.ingestion_batch = ?",
+        (test_batch,),
+    )
+    assert len(real_site) == 1, "real detection should have its own site"
+    assert real_site[0]["lat"] == test_lat
+    assert real_site[0]["lon"] == test_lon
+
+    # No orphaned site_detections (every entry points to valid site and detection)
+    orphan_sd = db.query(
+        "SELECT COUNT(*) FROM site_detections sd "
+        "LEFT JOIN sites s ON sd.site_id = s.site_id "
+        "LEFT JOIN detections d ON sd.detection_id = d.id "
+        "WHERE s.site_id IS NULL OR d.id IS NULL"
+    )[0][0]
+    assert orphan_sd == 0, f"stale site_detections found: {orphan_sd}"
+
+    # All alerts should be for valid sites
+    orphan_alerts = db.query(
+        "SELECT COUNT(*) FROM alerts a "
+        "LEFT JOIN sites s ON a.site_id = s.site_id "
+        "WHERE s.site_id IS NULL"
+    )[0][0]
+    assert orphan_alerts == 0, f"stale alerts found: {orphan_alerts}"
+
+    # E. Clean up the test state so the normal local database is restored
+    db.execute("DELETE FROM detections WHERE ingestion_batch = ?", (test_batch,))
+    db.execute("DELETE FROM site_detections WHERE site_id IN (SELECT site_id FROM sites WHERE lat = ? AND lon = ?)",
+               (test_lat, test_lon))
+    db.execute("DELETE FROM sites WHERE lat = ? AND lon = ?", (test_lat, test_lon))
+    db.execute("DELETE FROM alerts WHERE site_id IN (SELECT site_id FROM sites WHERE lat = ? AND lon = ?)",
+               (test_lat, test_lon))
+
+    # Verify cleanup
+    n_dets_final = db.query("SELECT COUNT(*) AS c FROM detections")[0]["c"]
+    assert n_dets_final == n_dets_before, "database not restored to original state"
+
+    print("RESET SAFETY TEST PASSED: real rows survive synthetic reset")
