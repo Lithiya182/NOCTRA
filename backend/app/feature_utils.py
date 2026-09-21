@@ -18,14 +18,21 @@ def dist_m(a: tuple[float, float], b: tuple[float, float]) -> float:
 
 
 def point_in_polygon(lat: float, lon: float, ring: list[tuple[float, float]]) -> bool:
-    """Ray-casting point-in-polygon test (planar approximation; fine at this scale)."""
+    """Ray-casting point-in-polygon test (planar approximation; fine at this scale).
+    
+    Args:
+        lat: Point latitude
+        lon: Point longitude
+        ring: Polygon ring as list of (lat, lon) tuples
+    """
     inside = False
     j = len(ring) - 1
     for i in range(len(ring)):
-        xi, yi = ring[i]
-        xj, yj = ring[j]
-        if ((yi > lat) != (yj > lat)) and (
-            lon < (xj - xi) * (lat - yi) / (yj - yi) + xi
+        lat_i, lon_i = ring[i]
+        lat_j, lon_j = ring[j]
+        # Check if ray crosses edge
+        if ((lat_i > lat) != (lat_j > lat)) and (
+            lon < (lon_j - lon_i) * (lat - lat_i) / (lat_j - lat_i) + lon_i
         ):
             inside = not inside
         j = i
@@ -58,13 +65,15 @@ def distance_to_polygon(
 
 
 def load_polygons(path: Path | str = OSM_GEOJSON) -> list[dict]:
-    """Load OSM seed polygons -> [{kind, name, ring: [(lat, lon), ...]}]. The first
-    ring is used; seed polygons are simple rectangles/convex shapes."""
+    """Load OSM seed polygons -> [{kind, name, ring: [(lat, lon), ...]}].
+    Source GeoJSON uses standard [lon, lat] ordering (CRS84).
+    Converts to internal (lat, lon) representation."""
     raw = json.loads(Path(path).read_text(encoding="utf-8"))
     polys = []
     for feature in raw.get("features", []):
         geom = feature.get("geometry", {})
-        ring_coords = geom.get("coordinates", [[]])[0]  # lon,lat ordering
+        ring_coords = geom.get("coordinates", [[]])[0]  # standard [lon, lat] ordering
+        # Convert from [lon, lat] to (lat, lon) for internal use
         ring = [(pt[1], pt[0]) for pt in ring_coords if len(pt) >= 2]
         if len(ring) >= 3:
             polys.append({

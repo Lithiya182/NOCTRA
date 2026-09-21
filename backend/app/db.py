@@ -40,7 +40,10 @@ def init_schema(conn: sqlite3.Connection) -> None:
             version TEXT,
             bright_ti5 REAL,
             frp REAL DEFAULT 0,
-            daynight TEXT
+            daynight TEXT,
+            is_synthetic INTEGER DEFAULT 1,
+            source TEXT DEFAULT 'synthetic',
+            ingestion_batch TEXT
         );
 
         CREATE TABLE IF NOT EXISTS sites (
@@ -62,7 +65,10 @@ def init_schema(conn: sqlite3.Connection) -> None:
             duty_cycle_pct REAL DEFAULT 0,
             d_industrial_m REAL,
             d_agri_m REAL,
-            d_residential_m REAL
+            d_residential_m REAL,
+            coverage_status TEXT DEFAULT 'unknown',
+            last_pass_date TEXT,
+            days_since_last_pass INTEGER
         );
 
         CREATE TABLE IF NOT EXISTS site_detections (

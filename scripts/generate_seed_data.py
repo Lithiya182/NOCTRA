@@ -177,6 +177,7 @@ def noise_rows() -> list[dict]:
 
 def build_osm_features() -> list[dict]:
     def poly(coords, kind, name):
+        # coords are in (lon, lat) order for standard GeoJSON [lon, lat]
         return {
             "type": "Feature",
             "properties": {"kind": kind, "name": name},
@@ -186,37 +187,37 @@ def build_osm_features() -> list[dict]:
     features = [
         # --- Jharia coalfield industrial (mine leases) - sized to cover the
         # persistent mine-fire clusters ---
-        poly([(23.695, 86.290), (23.790, 86.290), (23.790, 86.385), (23.695, 86.385)],
+        poly([(86.290, 23.695), (86.290, 23.790), (86.385, 23.790), (86.385, 23.695)],
              "industrial", "Jharia Colliery Block A"),
-        poly([(23.780, 86.385), (23.850, 86.385), (23.850, 86.475), (23.780, 86.475)],
+        poly([(86.385, 23.780), (86.385, 23.850), (86.475, 23.850), (86.475, 23.780)],
              "industrial", "Jharia Colliery Block B"),
-        poly([(23.748, 86.420), (23.772, 86.420), (23.772, 86.450), (23.748, 86.450)],
+        poly([(86.420, 23.748), (86.420, 23.772), (86.450, 23.772), (86.450, 23.748)],
              "residential", "Dhanbad City"),
         # --- Jamnagar refinery belt ---
-        poly([(22.428, 69.972), (22.502, 69.972), (22.502, 70.058), (22.428, 70.058)],
+        poly([(69.972, 22.428), (69.972, 22.502), (70.058, 22.502), (70.058, 22.428)],
              "industrial", "Jamnagar Refinery Complex"),
-        poly([(22.355, 70.175), (22.422, 70.175), (22.422, 70.243), (22.355, 70.243)],
+        poly([(70.175, 22.355), (70.175, 22.422), (70.243, 22.422), (70.243, 22.355)],
              "industrial", "Gujarat Industrial Estate"),
-        poly([(22.458, 70.055), (22.502, 70.055), (22.502, 70.105), (22.458, 70.105)],
+        poly([(70.055, 22.458), (70.055, 22.502), (70.105, 22.502), (70.105, 22.458)],
              "residential", "Jamnagar City"),
         # --- Punjab agricultural belts (stubble window) - tiled & overlapping so
         # every stubble point sits inside farmland ---
-        poly([(30.15, 74.70), (30.80, 74.70), (30.80, 75.55), (30.15, 75.55)],
+        poly([(74.70, 30.15), (74.70, 30.80), (75.55, 30.80), (75.55, 30.15)],
              "agricultural", "Farmland Punjab SW"),
-        poly([(30.15, 75.55), (30.80, 75.55), (30.80, 76.25), (30.15, 76.25)],
+        poly([(75.55, 30.15), (75.55, 30.80), (76.25, 30.80), (76.25, 30.15)],
              "agricultural", "Farmland Punjab S"),
-        poly([(30.80, 74.70), (31.35, 74.70), (31.35, 75.55), (30.80, 75.55)],
+        poly([(74.70, 30.80), (74.70, 31.35), (75.55, 31.35), (75.55, 30.80)],
              "agricultural", "Farmland Punjab NW"),
-        poly([(30.80, 75.55), (31.35, 75.55), (31.35, 76.25), (30.80, 76.25)],
+        poly([(75.55, 30.80), (75.55, 31.35), (76.25, 31.35), (76.25, 30.80)],
              "agricultural", "Farmland Punjab N"),
-        poly([(30.15, 76.25), (31.35, 76.25), (31.35, 76.95), (30.15, 76.95)],
+        poly([(76.25, 30.15), (76.25, 31.35), (76.95, 31.35), (76.95, 30.15)],
              "agricultural", "Farmland Punjab E"),
-        poly([(30.875, 75.835), (30.930, 75.835), (30.930, 75.900), (30.875, 75.900)],
+        poly([(75.835, 30.875), (75.835, 30.930), (75.900, 30.930), (75.900, 30.875)],
              "residential", "Ludhiana City"),
         # --- Uttarakhand forest wildfire ---
-        poly([(30.00, 79.05), (30.16, 79.05), (30.16, 79.32), (30.00, 79.32)],
+        poly([(79.05, 30.00), (79.05, 30.16), (79.32, 30.16), (79.32, 30.00)],
              "forest", "Almora Forest Range"),
-        poly([(30.055, 79.265), (30.110, 79.265), (30.110, 79.330), (30.055, 79.330)],
+        poly([(79.265, 30.055), (79.265, 30.110), (79.330, 30.110), (79.330, 30.055)],
              "residential", "Pithoragarh Town"),
     ]
     return {

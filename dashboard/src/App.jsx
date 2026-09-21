@@ -267,6 +267,7 @@ export default function App() {
                   frp: {s.max_frp?.toFixed(1)} MW · brightness: {s.brightness?.toFixed(0)}K<br/>
                   {s.explanation}<br/>
                   Last pass: {s.last_pass_date} ({s.days_since_last_pass} days ago)<br/>
+                  Next expected pass: {s.next_expected_pass_date || '—'}<br/>
                   <hr style={{margin: '6px 0', borderColor: '#334155'}}/>
                   <div style={{fontSize: '12px', fontWeight: '600', marginBottom: '4px'}}>Location</div>
                   <div style={{fontSize: '11px', lineHeight: '1.6'}}>

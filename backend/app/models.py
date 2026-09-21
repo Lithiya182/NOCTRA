@@ -48,6 +48,7 @@ class SiteRow(BaseModel):
     coverage_status: Optional[str] = None
     last_pass_date: Optional[str] = None
     days_since_last_pass: Optional[int] = None
+    next_expected_pass_date: Optional[str] = None
     frp_mean: Optional[float] = None
     frp_std: Optional[float] = None
     frp_last: Optional[float] = None

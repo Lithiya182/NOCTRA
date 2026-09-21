@@ -2,7 +2,8 @@ from __future__ import annotations
 
 import math
 import statistics
-from datetime import date, datetime, timezone
+from datetime import date, datetime, timedelta, timezone
+from typing import Optional
 from fastapi import APIRouter, HTTPException
 
 from .. import db, ml_model
@@ -12,6 +13,8 @@ router = APIRouter(prefix="/api/sites", tags=["sites"])
 
 # Coverage threshold: days after last pass to consider coverage uncertain
 COVERAGE_GAP_DAYS = 2
+# Expected revisit days (VIIRS ~daily, but allow some margin)
+EXPECTED_REVISIT_DAYS = 1
 
 # FRP Intensity thresholds (MW)
 FRP_INTENSITY_BANDS = [
@@ -210,38 +213,53 @@ def _attach_thermal_behavior(sites: list[dict]) -> None:
         s["expansion_magnitude"] = _compute_expansion_magnitude(lat, lon, site_id)
 
 
-def _get_coverage_info() -> tuple[Optional[str], Optional[int]]:
-    """Get global last pass date and days since from detections table."""
-    row = db.query("SELECT MAX(acq_date) as last_pass FROM detections WHERE is_synthetic = 0")
+def _get_site_coverage(site_id: str) -> tuple[Optional[str], Optional[int], Optional[str]]:
+    """Get site-specific last pass date, days since, and next expected pass date.
+    Returns (last_pass_date, days_since_last_pass, next_expected_pass_date).
+    """
+    row = db.query(
+        """
+        SELECT MAX(d.acq_date) as last_pass
+        FROM detections d
+        JOIN site_detections sd ON d.id = sd.detection_id
+        WHERE sd.site_id = ? AND d.is_synthetic = 0
+        """,
+        (site_id,),
+    )
     if not row or not row[0]["last_pass"]:
-        return None, None
+        return None, None, None
     last_pass_str = row[0]["last_pass"]
     try:
         last_pass = date.fromisoformat(last_pass_str)
         today = datetime.now(timezone.utc).date()
         days_since = (today - last_pass).days
-        return last_pass_str, days_since
+        # Next expected pass is based on revisit cycle
+        next_expected = last_pass + timedelta(days=EXPECTED_REVISIT_DAYS)
+        next_expected_str = next_expected.isoformat()
+        return last_pass_str, days_since, next_expected_str
     except Exception:
-        return last_pass_str, None
+        return last_pass_str, None, None
 
 
 def _attach_coverage(sites: list[dict]) -> None:
-    """Attach coverage status to all sites based on global last pass date."""
-    last_pass_date, days_since = _get_coverage_info()
-    if last_pass_date is None:
-        for s in sites:
+    """Attach coverage status to each site based on its own detection history."""
+    for s in sites:
+        site_id = s["site_id"]
+        last_pass_date, days_since, next_expected = _get_site_coverage(site_id)
+        
+        if last_pass_date is None:
             s["coverage_status"] = "unknown"
             s["last_pass_date"] = None
             s["days_since_last_pass"] = None
-        return
-
-    for s in sites:
-        s["last_pass_date"] = last_pass_date
-        s["days_since_last_pass"] = days_since
-        if days_since is not None and days_since > COVERAGE_GAP_DAYS:
-            s["coverage_status"] = "uncertain"
+            s["next_expected_pass_date"] = None
         else:
-            s["coverage_status"] = "covered"
+            s["last_pass_date"] = last_pass_date
+            s["days_since_last_pass"] = days_since
+            s["next_expected_pass_date"] = next_expected
+            if days_since is not None and days_since > COVERAGE_GAP_DAYS:
+                s["coverage_status"] = "uncertain"
+            else:
+                s["coverage_status"] = "covered"
 
 
 def _to_row(r: dict) -> SiteRow:
