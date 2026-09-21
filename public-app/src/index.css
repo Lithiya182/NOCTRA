@@ -29,6 +29,7 @@ h3 { margin: 0 0 12px; font-size: 15px; color: var(--accent); }
 .advhead { display: flex; align-items: center; gap: 8px; }
 .badge { font-size: 10px; font-weight: 800; padding: 2px 6px; border-radius: 4px; color: #fff; }
 .b-extreme { background: #9b2226; } .b-severe { background: #e63946; } .b-moderate { background: #f4a261; color: #111; } .b-minor { background: #64748b; }
+.prov-badge { font-size: 10px; font-weight: 700; padding: 1px 6px; border-radius: 3px; color: #fff; text-transform: uppercase; }
 .small { font-size: 11px; color: var(--muted); }
 .muted { color: var(--muted); font-size: 13px; }
 .statusbox { display: flex; flex-direction: column; gap: 10px; }

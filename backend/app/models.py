@@ -41,6 +41,8 @@ class SiteRow(BaseModel):
     persistence: int = 0
     duty_cycle_pct: float = 0
     ml_prediction: Optional[str] = None
+    is_synthetic: bool = True
+    source: str = "synthetic"
 
 
 class AlertOut(BaseModel):

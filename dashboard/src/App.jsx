@@ -14,7 +14,18 @@ const CLASS_LABELS = {
   wildfire: "Wildfire",
   other: "Other / unknown",
 };
+const PROVENANCE_BADGE = {
+  synthetic: { label: "Demo", color: "#6c757d" },
+  firms: { label: "Real", color: "#198754" },
+  synthetic_firms: { label: "Mixed", color: "#fd7e14" },
+};
 const NEED_ICON_COLOR = "#3a86ff";
+
+function provenanceBadge(source, isSynthetic) {
+  if (!isSynthetic && source.includes("firms")) return PROVENANCE_BADGE.firms;
+  if (isSynthetic && source.includes("firms")) return PROVENANCE_BADGE.synthetic_firms;
+  return PROVENANCE_BADGE.synthetic;
+}
 
 function urlBase64ToUint8Array(base64) {
   const padding = "=".repeat((4 - (base64.length % 4)) % 4);
@@ -137,6 +148,11 @@ export default function App() {
                     <b>#{a.id}</b>
                     <span className={`sev sev-${a.severity}`}>{a.severity.toUpperCase()}</span>
                     <span className="cls">{a.site?.classification ?? "—"}</span>
+                    {a.site && (
+                      <span className="prov-badge" style={{ background: provenanceBadge(a.site.source, a.site.is_synthetic).color }}>
+                        {provenanceBadge(a.site.source, a.site.is_synthetic).label}
+                      </span>
+                    )}
                   </div>
                   <div className="alertbody">
                     <div>{a.site ? `${a.site.lat.toFixed(4)}, ${a.site.lon.toFixed(4)}` : ""}</div>
@@ -194,7 +210,11 @@ export default function App() {
                   weight: s.is_anomalous ? 2 : 1,
                 }}>
                 <Popup>
-                  <b>{s.site_id}</b><br/>
+                  <b>{s.site_id}</b>
+                  <span className="prov-badge" style={{ background: provenanceBadge(s.source, s.is_synthetic).color }}>
+                    {provenanceBadge(s.source, s.is_synthetic).label}
+                  </span>
+                  <br/>
                   <span className="dot" style={{ background: CLASS_COLORS[s.classification] }} /> {CLASS_LABELS[s.classification]}<br/>
                   Conf: {s.confidence} · Sev: <b>{s.severity}</b><br/>
                   frp: {s.max_frp?.toFixed(1)} MW · brightness: {s.brightness?.toFixed(0)}K<br/>

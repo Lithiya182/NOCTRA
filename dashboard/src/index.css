@@ -40,6 +40,7 @@ code { font-size: 10px; white-space: pre-wrap; display: block; max-height: 120px
 .sev-moderate { background: #f4a261; color: #111; }
 .sev-minor { background: #64748b; color: #fff; }
 .cls { font-size: 11px; background: #334155; padding: 2px 6px; border-radius: 4px; }
+.prov-badge { font-size: 10px; font-weight: 700; padding: 1px 6px; border-radius: 3px; color: #fff; text-transform: uppercase; }
 .alertbody { font-size: 12px; margin-top: 6px; }
 .actions { display: flex; gap: 8px; margin-top: 8px; }
 .actions button { flex: 1; padding: 7px 8px; border: none; border-radius: 6px; font-weight: 700; font-size: 12px; cursor: pointer; }

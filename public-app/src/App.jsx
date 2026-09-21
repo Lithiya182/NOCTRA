@@ -8,6 +8,18 @@ const CLASS_LABELS = {
   other: "Other / unknown",
 };
 
+const PROVENANCE_BADGE = {
+  synthetic: { label: "Demo", color: "#6c757d" },
+  firms: { label: "Real", color: "#198754" },
+  synthetic_firms: { label: "Mixed", color: "#fd7e14" },
+};
+
+function provenanceBadge(source, isSynthetic) {
+  if (!isSynthetic && source?.includes("firms")) return PROVENANCE_BADGE.firms;
+  if (isSynthetic && source?.includes("firms")) return PROVENANCE_BADGE.synthetic_firms;
+  return PROVENANCE_BADGE.synthetic;
+}
+
 function urlBase64ToUint8Array(base64) {
   const padding = "=".repeat((4 - (base64.length % 4)) % 4);
   const raw = atob((base64 + padding).replace(/-/g, "+").replace(/_/g, "/"));
@@ -98,6 +110,11 @@ export default function App() {
               <div className="advhead">
                 <span className={`badge b-${a.severity}`}>{a.severity.toUpperCase()}</span>
                 <b>{CLASS_LABELS[a.site?.classification] ?? "Fire"}</b>
+                {a.site && (
+                  <span className="prov-badge" style={{ background: provenanceBadge(a.site.source, a.site.is_synthetic).color }}>
+                    {provenanceBadge(a.site.source, a.site.is_synthetic).label}
+                  </span>
+                )}
                 <span className="small">{a.site ? `${a.site.lat.toFixed(3)}, ${a.site.lon.toFixed(3)}` : ""}</span>
               </div>
               <p>{a.cap?.info?.[0]?.headline ?? "Thermal anomaly under observation."}</p>
