@@ -48,6 +48,7 @@ export default function App() {
   const [needs, setNeeds] = useState([]);
   const [polygons, setPolygons] = useState([]);
   const [filters, setFilters] = useState({ industrial_fire: true, agricultural_burn: true, wildfire: true, other: true });
+  const [provFilter, setProvFilter] = useState("real"); // 'all' | 'real' | 'demo'
   const [toast, setToast] = useState(null);
   const [pushStatus, setPushStatus] = useState("off");
   const errorShown = useRef({});
@@ -99,14 +100,26 @@ export default function App() {
   }, []);
 
   const visibleSites = useMemo(
-    () => sites.filter((s) => filters[s.classification]),
-    [sites, filters]
+    () => sites.filter((s) => filters[s.classification] && matchesProvenance(s, provFilter)),
+    [sites, filters, provFilter]
+  );
+  const visibleAlerts = useMemo(
+    () => alerts.filter((a) => matchesProvenance(a.site, provFilter)),
+    [alerts, provFilter]
   );
   const stats = useMemo(() => {
     const c = {};
     sites.forEach((s) => { c[s.classification] = (c[s.classification] || 0) + 1; });
     return c;
   }, [sites]);
+
+  function matchesProvenance(site, mode) {
+    if (!site) return true;
+    if (mode === "all") return true;
+    if (mode === "real") return site.is_synthetic === false;
+    if (mode === "demo") return site.is_synthetic === true;
+    return true;
+  }
 
   const transition = async (alert, action) => {
     try {
@@ -148,10 +161,32 @@ export default function App() {
           </section>
 
           <section>
+            <h3>Data source</h3>
+            <div className="filterrow">
+              <label>
+                <input type="radio" name="prov" checked={provFilter === "all"} onChange={() => setProvFilter("all")} />
+                <span>All</span>
+              </label>
+            </div>
+            <div className="filterrow">
+              <label>
+                <input type="radio" name="prov" checked={provFilter === "real"} onChange={() => setProvFilter("real")} />
+                <span className="prov-badge" style={{ background: PROVENANCE_BADGE.firms.color }}>Real Satellite</span>
+              </label>
+            </div>
+            <div className="filterrow">
+              <label>
+                <input type="radio" name="prov" checked={provFilter === "demo"} onChange={() => setProvFilter("demo")} />
+                <span className="prov-badge" style={{ background: PROVENANCE_BADGE.synthetic.color }}>Demo</span>
+              </label>
+            </div>
+          </section>
+
+          <section>
             <h3>Government alert console</h3>
             <p className="hint">Severe/extreme detections appear here automatically within ~2s.</p>
             <div className="alert-list">
-              {alerts.slice(0, 30).map((a) => (
+              {visibleAlerts.slice(0, 30).map((a) => (
                 <div key={a.id} className={`alertcard ${a.status} ${a.severity}`}>
                   <div className="alerthead">
                     <b>#{a.id}</b>
