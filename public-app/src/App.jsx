@@ -14,10 +14,20 @@ const PROVENANCE_BADGE = {
   synthetic_firms: { label: "Mixed", color: "#fd7e14" },
 };
 
+const COVERAGE_BADGE = {
+  covered: { label: "Coverage OK", color: "#198754" },
+  uncertain: { label: "Coverage Uncertain", color: "#fd7e14" },
+  unknown: { label: "Coverage Unknown", color: "#6c757d" },
+};
+
 function provenanceBadge(source, isSynthetic) {
   if (!isSynthetic && source?.includes("firms")) return PROVENANCE_BADGE.firms;
   if (isSynthetic && source?.includes("firms")) return PROVENANCE_BADGE.synthetic_firms;
   return PROVENANCE_BADGE.synthetic;
+}
+
+function coverageBadge(coverageStatus) {
+  return COVERAGE_BADGE[coverageStatus] || COVERAGE_BADGE.unknown;
 }
 
 function urlBase64ToUint8Array(base64) {
@@ -111,9 +121,14 @@ export default function App() {
                 <span className={`badge b-${a.severity}`}>{a.severity.toUpperCase()}</span>
                 <b>{CLASS_LABELS[a.site?.classification] ?? "Fire"}</b>
                 {a.site && (
-                  <span className="prov-badge" style={{ background: provenanceBadge(a.site.source, a.site.is_synthetic).color }}>
-                    {provenanceBadge(a.site.source, a.site.is_synthetic).label}
-                  </span>
+                  <>
+                    <span className="prov-badge" style={{ background: provenanceBadge(a.site.source, a.site.is_synthetic).color }}>
+                      {provenanceBadge(a.site.source, a.site.is_synthetic).label}
+                    </span>
+                    <span className="prov-badge" style={{ background: coverageBadge(a.site.coverage_status).color }}>
+                      {coverageBadge(a.site.coverage_status).label}
+                    </span>
+                  </>
                 )}
                 <span className="small">{a.site ? `${a.site.lat.toFixed(3)}, ${a.site.lon.toFixed(3)}` : ""}</span>
               </div>

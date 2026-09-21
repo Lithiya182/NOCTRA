@@ -19,12 +19,21 @@ const PROVENANCE_BADGE = {
   firms: { label: "Real", color: "#198754" },
   synthetic_firms: { label: "Mixed", color: "#fd7e14" },
 };
+const COVERAGE_BADGE = {
+  covered: { label: "Coverage OK", color: "#198754" },
+  uncertain: { label: "Coverage Uncertain", color: "#fd7e14" },
+  unknown: { label: "Coverage Unknown", color: "#6c757d" },
+};
 const NEED_ICON_COLOR = "#3a86ff";
 
 function provenanceBadge(source, isSynthetic) {
   if (!isSynthetic && source.includes("firms")) return PROVENANCE_BADGE.firms;
   if (isSynthetic && source.includes("firms")) return PROVENANCE_BADGE.synthetic_firms;
   return PROVENANCE_BADGE.synthetic;
+}
+
+function coverageBadge(coverageStatus) {
+  return COVERAGE_BADGE[coverageStatus] || COVERAGE_BADGE.unknown;
 }
 
 function urlBase64ToUint8Array(base64) {
@@ -214,11 +223,15 @@ export default function App() {
                   <span className="prov-badge" style={{ background: provenanceBadge(s.source, s.is_synthetic).color }}>
                     {provenanceBadge(s.source, s.is_synthetic).label}
                   </span>
+                  <span className="prov-badge" style={{ background: coverageBadge(s.coverage_status).color }}>
+                    {coverageBadge(s.coverage_status).label}
+                  </span>
                   <br/>
                   <span className="dot" style={{ background: CLASS_COLORS[s.classification] }} /> {CLASS_LABELS[s.classification]}<br/>
                   Conf: {s.confidence} · Sev: <b>{s.severity}</b><br/>
                   frp: {s.max_frp?.toFixed(1)} MW · brightness: {s.brightness?.toFixed(0)}K<br/>
                   {s.explanation}<br/>
+                  Last pass: {s.last_pass_date} ({s.days_since_last_pass} days ago)<br/>
                   <code>{JSON.stringify({ site_id: s.site_id, lat: s.lat, lon: s.lon, classification: s.classification, confidence: s.confidence, explanation: s.explanation, severity: s.severity, is_anomalous: s.is_anomalous, status: s.status, first_seen: s.first_seen, last_seen: s.last_seen })}</code>
                 </Popup>
               </CircleMarker>

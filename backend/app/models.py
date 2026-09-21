@@ -43,6 +43,9 @@ class SiteRow(BaseModel):
     ml_prediction: Optional[str] = None
     is_synthetic: bool = True
     source: str = "synthetic"
+    coverage_status: Optional[str] = None
+    last_pass_date: Optional[str] = None
+    days_since_last_pass: Optional[int] = None
 
 
 class AlertOut(BaseModel):
