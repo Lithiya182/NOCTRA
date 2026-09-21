@@ -8,6 +8,8 @@ from pydantic import BaseModel, Field
 Classification = Literal["industrial_fire", "agricultural_burn", "wildfire", "other"]
 Severity = Literal["minor", "moderate", "severe", "extreme"]
 Status = Literal["routine", "alert_triggered", "confirmed", "dismissed"]
+FRPTrend = Literal["increasing", "decreasing", "stable", "insufficient_data"]
+FRPIntensity = Literal["weak", "moderate", "high-moderate", "high", "very-high"]
 
 
 class SiteOfInterest(BaseModel):
@@ -46,6 +48,15 @@ class SiteRow(BaseModel):
     coverage_status: Optional[str] = None
     last_pass_date: Optional[str] = None
     days_since_last_pass: Optional[int] = None
+    frp_mean: Optional[float] = None
+    frp_std: Optional[float] = None
+    frp_last: Optional[float] = None
+    frp_trend: Optional[FRPTrend] = None
+    detection_count: Optional[int] = None
+    active_pass_count: Optional[int] = None
+    days_span: Optional[int] = None
+    expansion_magnitude: Optional[float] = None
+    frp_intensity: Optional[FRPIntensity] = None
 
 
 class AlertOut(BaseModel):

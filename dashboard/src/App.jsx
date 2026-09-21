@@ -267,7 +267,20 @@ export default function App() {
                   frp: {s.max_frp?.toFixed(1)} MW · brightness: {s.brightness?.toFixed(0)}K<br/>
                   {s.explanation}<br/>
                   Last pass: {s.last_pass_date} ({s.days_since_last_pass} days ago)<br/>
-                  <code>{JSON.stringify({ site_id: s.site_id, lat: s.lat, lon: s.lon, classification: s.classification, confidence: s.confidence, explanation: s.explanation, severity: s.severity, is_anomalous: s.is_anomalous, status: s.status, first_seen: s.first_seen, last_seen: s.last_seen })}</code>
+                  <hr style={{margin: '6px 0', borderColor: '#334155'}}/>
+                  <div style={{fontSize: '12px', fontWeight: '600', marginBottom: '4px'}}>Thermal Behavior</div>
+                  <div style={{fontSize: '11px', lineHeight: '1.6'}}>
+                    <div>FRP Intensity: <b>{(s.frp_intensity || '—').replace('-', ' ').toUpperCase()}</b></div>
+                    <div>Current FRP: <b>{s.frp_last?.toFixed(1)}</b> MW</div>
+                    <div>Max FRP: <b>{s.max_frp?.toFixed(1)}</b> MW</div>
+                    <div>Avg FRP: <b>{s.frp_mean?.toFixed(1)}</b> MW (±{s.frp_std?.toFixed(1)} MW)</div>
+                    <div>FRP Trend: <b>{s.frp_trend?.replace('_', ' ').toUpperCase()}</b></div>
+                    <div>Observations: <b>{s.detection_count ?? '—'}</b></div>
+                    <div>Active Passes: <b>{s.active_pass_count ?? '—'}</b></div>
+                    <div>Observation Span: <b>{s.days_span ?? '—'}</b> days</div>
+                    <div>Expansion: <b>{s.expansion_magnitude !== null && s.expansion_magnitude !== undefined ? s.expansion_magnitude.toFixed(3) + ' km²' : 'insufficient data'}</b></div>
+                    <div>Coverage: <b>{(s.coverage_status || 'unknown').toUpperCase()}</b></div>
+                  </div>
                 </Popup>
               </CircleMarker>
             ))}

@@ -1,5 +1,7 @@
 from __future__ import annotations
 
+import math
+import statistics
 from datetime import date, datetime, timezone
 from fastapi import APIRouter, HTTPException
 
@@ -10,6 +12,202 @@ router = APIRouter(prefix="/api/sites", tags=["sites"])
 
 # Coverage threshold: days after last pass to consider coverage uncertain
 COVERAGE_GAP_DAYS = 2
+
+# FRP Intensity thresholds (MW)
+FRP_INTENSITY_BANDS = [
+    (100, "very-high"),
+    (50, "high"),
+    (20, "high-moderate"),
+    (5, "moderate"),
+    (0, "weak"),
+]
+
+
+def _frp_intensity(frp: float) -> str:
+    """Classify FRP into intensity bands."""
+    for threshold, label in FRP_INTENSITY_BANDS:
+        if frp >= threshold:
+            return label
+    return "weak"
+
+
+def _compute_frp_trend(frp_values: list[float]) -> str:
+    """Determine FRP trend from chronological values.
+    Returns: increasing, decreasing, stable, insufficient_data
+    """
+    if len(frp_values) < 3:
+        return "insufficient_data"
+    # Split into recent (last half) vs earlier (first half)
+    mid = len(frp_values) // 2
+    earlier = frp_values[:mid]
+    recent = frp_values[mid:]
+    if not earlier or not recent:
+        return "insufficient_data"
+    earlier_mean = statistics.mean(earlier)
+    recent_mean = statistics.mean(recent)
+    # Use 20% relative change as threshold for trend
+    if recent_mean > earlier_mean * 1.2:
+        return "increasing"
+    if recent_mean < earlier_mean * 0.8:
+        return "decreasing"
+    return "stable"
+
+
+def _compute_expansion_magnitude(lat: float, lon: float, site_id: str) -> float | None:
+    """Compute cluster expansion magnitude in km² if data supports it.
+    Uses convex hull area of detections within EXPANSION_RADIUS_M (4000m)
+    comparing first half vs second half of pass dates.
+    Returns None if insufficient data.
+    """
+    from haversine import haversine, Unit
+    M = Unit.METERS
+    EXPANSION_RADIUS_M = 4000
+
+    # Get all detections for this site with coordinates and dates
+    det_rows = db.query(
+        """
+        SELECT d.latitude, d.longitude, d.acq_date
+        FROM detections d
+        JOIN site_detections sd ON d.id = sd.detection_id
+        WHERE sd.site_id = ?
+        ORDER BY d.acq_date, d.acq_time
+        """,
+        (site_id,),
+    )
+    if not det_rows:
+        return None
+
+    # Group by pass date
+    by_date: dict[str, list[tuple[float, float]]] = {}
+    for d in det_rows:
+        by_date.setdefault(d["acq_date"], []).append((d["latitude"], d["longitude"]))
+
+    dates = sorted(by_date.keys())
+    if len(dates) < 2:
+        return None
+
+    # Split dates into first half and second half
+    mid = len(dates) // 2
+    first_half_dates = dates[:mid]
+    second_half_dates = dates[mid:]
+
+    def convex_hull_area(pts: list[tuple[float, float]]) -> float:
+        """Compute convex hull area in km² using Graham scan + shoelace formula."""
+        if len(pts) < 3:
+            return 0.0
+        # Convert to local flat projection around centroid for area calc
+        centroid_lat = sum(p[0] for p in pts) / len(pts)
+        centroid_lon = sum(p[1] for p in pts) / len(pts)
+        # Simple flat projection (valid for small areas < 4km)
+        local_pts = []
+        for lat, lon in pts:
+            x = haversine((centroid_lat, centroid_lon), (centroid_lat, lon), unit=M)
+            y = haversine((centroid_lat, centroid_lon), (lat, centroid_lon), unit=M)
+            if lon < centroid_lon:
+                x = -x
+            if lat < centroid_lat:
+                y = -y
+            local_pts.append((x, y))
+
+        # Graham scan for convex hull
+        def cross(o, a, b):
+            return (a[0] - o[0]) * (b[1] - o[1]) - (a[1] - o[1]) * (b[0] - o[0])
+
+        pts_sorted = sorted(local_pts)
+        lower = []
+        for p in pts_sorted:
+            while len(lower) >= 2 and cross(lower[-2], lower[-1], p) <= 0:
+                lower.pop()
+            lower.append(p)
+        upper = []
+        for p in reversed(pts_sorted):
+            while len(upper) >= 2 and cross(upper[-2], upper[-1], p) <= 0:
+                upper.pop()
+            upper.append(p)
+        hull = lower[:-1] + upper[:-1]
+        if len(hull) < 3:
+            return 0.0
+
+        # Shoelace formula
+        area = 0.0
+        for i in range(len(hull)):
+            j = (i + 1) % len(hull)
+            area += hull[i][0] * hull[j][1] - hull[j][0] * hull[i][1]
+        return abs(area) / 2.0 / 1_000_000.0  # Convert m² to km²
+
+    # Collect points within EXPANSION_RADIUS_M for each half
+    def collect_pts(date_list: list[str]) -> list[tuple[float, float]]:
+        pts = []
+        for dt in date_list:
+            for lat, lon in by_date[dt]:
+                if haversine((lat, lon), (lat, lon), unit=M) <= EXPANSION_RADIUS_M:
+                    pts.append((lat, lon))
+        return pts
+
+    first_pts = collect_pts(first_half_dates)
+    second_pts = collect_pts(second_half_dates)
+
+    if len(first_pts) < 3 or len(second_pts) < 3:
+        return None
+
+    area_first = convex_hull_area(first_pts)
+    area_second = convex_hull_area(second_pts)
+
+    return max(0.0, area_second - area_first)
+
+
+def _attach_thermal_behavior(sites: list[dict]) -> None:
+    """Attach thermal behavior indicators computed from detection data."""
+    if not sites:
+        return
+
+    for s in sites:
+        site_id = s["site_id"]
+        lat = s["lat"]
+        lon = s["lon"]
+
+        # Get all detections for this site chronologically
+        det_rows = db.query(
+            """
+            SELECT d.frp, d.latitude, d.longitude, d.acq_date, d.acq_time
+            FROM detections d
+            JOIN site_detections sd ON d.id = sd.detection_id
+            WHERE sd.site_id = ?
+            ORDER BY d.acq_date, d.acq_time
+            """,
+            (site_id,),
+        )
+
+        if not det_rows:
+            s["frp_mean"] = None
+            s["frp_std"] = None
+            s["frp_last"] = None
+            s["frp_trend"] = "insufficient_data"
+            s["detection_count"] = 0
+            s["active_pass_count"] = 0
+            s["days_span"] = 0
+            s["expansion_magnitude"] = None
+            s["frp_intensity"] = "weak"
+            continue
+
+        frp_values = [d["frp"] for d in det_rows]
+        dates = [d["acq_date"] for d in det_rows]
+
+        # Basic statistics
+        s["frp_mean"] = round(statistics.mean(frp_values), 2) if len(frp_values) >= 1 else None
+        s["frp_std"] = round(statistics.stdev(frp_values), 2) if len(frp_values) >= 2 else None
+        s["frp_last"] = round(frp_values[-1], 2)
+        s["frp_trend"] = _compute_frp_trend(frp_values)
+        s["detection_count"] = len(det_rows)
+        s["active_pass_count"] = len(set(dates))
+        s["days_span"] = len(set(dates))  # distinct pass dates
+
+        # FRP intensity based on max_frp (site-level max)
+        max_frp = s.get("max_frp", max(frp_values) if frp_values else 0)
+        s["frp_intensity"] = _frp_intensity(max_frp)
+
+        # Expansion magnitude
+        s["expansion_magnitude"] = _compute_expansion_magnitude(lat, lon, site_id)
 
 
 def _get_coverage_info() -> tuple[Optional[str], Optional[int]]:
@@ -111,6 +309,7 @@ def list_sites(classification: str | None = None,
     rows = [dict(r) for r in db.query(sql, tuple(params))]
     _attach_provenance(rows)
     _attach_coverage(rows)
+    _attach_thermal_behavior(rows)
     return [_to_row(r) for r in rows]
 
 
@@ -122,4 +321,5 @@ def get_site(site_id: str) -> SiteRow:
     row = dict(rows[0])
     _attach_provenance([row])
     _attach_coverage([row])
+    _attach_thermal_behavior([row])
     return _to_row(row)
