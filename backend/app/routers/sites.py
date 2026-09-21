@@ -16,7 +16,9 @@ def _to_row(r: dict) -> SiteRow:
 
 
 def _attach_provenance(sites: list[dict]) -> None:
-    """Attach is_synthetic and source fields based on detections."""
+    """Attach is_synthetic and source fields based on detections.
+    Three-way: Real-only (no synthetic), Demo-only (no real), Mixed (both).
+    """
     if not sites:
         return
     site_ids = [s["site_id"] for s in sites]
@@ -24,7 +26,8 @@ def _attach_provenance(sites: list[dict]) -> None:
     rows = db.query(
         f"""
         SELECT s.site_id,
-               MIN(d.is_synthetic) as min_is_synthetic,
+               MIN(d.is_synthetic) as has_real,
+               MAX(d.is_synthetic) as has_synthetic,
                GROUP_CONCAT(DISTINCT d.source) as sources
         FROM sites s
         JOIN site_detections sd ON s.site_id = sd.site_id
@@ -34,7 +37,17 @@ def _attach_provenance(sites: list[dict]) -> None:
         """,
         tuple(site_ids),
     )
-    prov_map = {r["site_id"]: {"is_synthetic": bool(r["min_is_synthetic"]), "source": r["sources"]} for r in rows}
+    prov_map = {}
+    for r in rows:
+        has_real = r["has_real"] == 0
+        has_synthetic = r["has_synthetic"] == 1
+        if has_real and has_synthetic:
+            is_syn, src = True, "synthetic,firms"  # Mixed → is_synthetic=True for badge logic
+        elif has_real:
+            is_syn, src = False, "firms"
+        else:
+            is_syn, src = True, "synthetic"
+        prov_map[r["site_id"]] = {"is_synthetic": is_syn, "source": src}
     for s in sites:
         prov = prov_map.get(s["site_id"], {"is_synthetic": True, "source": "synthetic"})
         s["is_synthetic"] = prov["is_synthetic"]
