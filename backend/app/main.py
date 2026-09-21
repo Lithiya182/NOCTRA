@@ -19,10 +19,16 @@ logging.basicConfig(level=logging.INFO, format="%(asctime)s %(name)s %(levelname
 async def lifespan(app: FastAPI):
     summary = ingest(reset=True)
     if summary.get("sites"):
-        try:
-            ml_model.train()
-        except Exception:  # noqa: BLE001
-            logging.warning("ML weak-label training skipped", exc_info=True)
+        # ML training is gated behind explicit flag - only run if enabled
+        # Default: False to avoid silent retraining on every restart including tests
+        import os
+        if os.getenv("ENABLE_ML_TRAINING", "false").lower() == "true":
+            try:
+                ml_model.train()
+            except Exception:  # noqa: BLE001
+                logging.warning("ML weak-label training skipped", exc_info=True)
+        else:
+            logging.info("ML training disabled (set ENABLE_ML_TRAINING=true to enable)")
     logging.info("startup ingest complete: %s", summary)
     yield
 

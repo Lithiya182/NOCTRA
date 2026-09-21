@@ -208,31 +208,33 @@ def trigger_runtime_detection(lat: float, lon: float, frp: float = 120.0,
     """Dev/demo helper: inject a LIVE detection plus its recent history at runtime,
     classify it, and produce a new government-console alert. Demonstrates the
     end-to-end path without using any live external API."""
-    # Use synthetic seed dates for history simulation
-    _, pass_dates = load_csv(FIRMS_CSV)
+    # Use synthetic seed dates for history simulation - use a fixed set of pass dates
+    # that includes the synthetic history we create, independent of real data in DB.
+    _, seed_pass_dates = load_csv(FIRMS_CSV)
     today = datetime.now(timezone.utc).strftime("%Y-%m-%d")
     now_t = datetime.now(timezone.utc).strftime("%H%M")
 
     # Simulate the site having been active on previous satellite passes too.
-    history_dates = pass_dates[-4:]
+    # Use the last 4 seed dates + today for a 5-pass history
+    history_dates = seed_pass_dates[-4:] + [today]
     inserted = []
     for hd in history_dates:
         inserted.append((lat, lon, brightness, 0.4, 0.4, hd, now_t, "NOAA-20",
                          "VIIRS", 98.0, "10.1.1_NRT", 305.0, frp, "D",
                          1, "synthetic", "seed_20251110_20251114"))
-    inserted.append((lat, lon, brightness, 0.4, 0.4, today, now_t, "NOAA-20",
-                     "VIIRS", 98.0, "10.1.1_NRT", 305.0, frp, "D",
-                     1, "synthetic", "seed_20251110_20251114"))
     db.executemany(
         "INSERT INTO detections (latitude, longitude, bright_ti4, scan, track, acq_date, "
         "acq_time, satellite, instrument, confidence, version, bright_ti5, frp, daynight, "
         "is_synthetic, source, ingestion_batch) "
         "VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)", inserted)
 
-    # Build detection dicts for the classifier straight from the DB (sources of truth).
+    # Build detection dicts for the classifier: only synthetic detections near this site
+    # plus the ones we just inserted. Use seed pass dates for consistency.
     det_rows = [dict(r) for r in db.query(
-        "SELECT latitude, longitude, bright_ti4, acq_date, frp FROM detections")]
-    all_pass_dates = sorted({r["acq_date"] for r in det_rows})
+        "SELECT latitude, longitude, bright_ti4, acq_date, frp FROM detections "
+        "WHERE is_synthetic = 1")]
+    # Also include the newly inserted detections (they're already in DB with is_synthetic=1)
+    all_pass_dates = sorted(set(seed_pass_dates + [today]))
 
     sid = _site_id(lat, lon, set())
     existing = db.query("SELECT * FROM sites WHERE site_id=?", (sid,))

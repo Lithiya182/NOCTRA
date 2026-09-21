@@ -310,6 +310,130 @@ def fetch_new_data(since_date: date, max_date: Optional[date] = None) -> list[di
     return all_rows
 
 
+def _ingest_incremental(
+    rows: list[dict],
+    pass_dates: list[str],
+    polys: list[dict],
+    is_synthetic: int,
+    source: str,
+    ingestion_batch: str,
+) -> dict:
+    """Incremental ingestion: add new detections, update/merge sites, reclassify affected.
+    Does NOT clear derived tables - updates them in place.
+    """
+    if not rows:
+        return {"detections": 0, "sites": 0, "pass_dates": pass_dates, "polygons": len(polys), "alerts_created": 0}
+
+    # --- 1. Insert new detections with natural-key dedup ---
+    row_sql = (
+        "INSERT OR IGNORE INTO detections (latitude, longitude, bright_ti4, scan, track, "
+        "acq_date, acq_time, satellite, instrument, confidence, version, bright_ti5, "
+        "frp, daynight, is_synthetic, source, ingestion_batch) "
+        "VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)"
+    )
+    det_rows = [
+        (r["latitude"], r["longitude"], r.get("bright_ti4", 0), r.get("scan", 0),
+         r.get("track", 0), r["acq_date"], r.get("acq_time"), r.get("satellite"),
+         r.get("instrument"), r.get("confidence", 0), r.get("version"),
+         r.get("bright_ti5", 0), r.get("frp", 0), r.get("daynight"),
+         is_synthetic, source, ingestion_batch)
+        for r in rows
+    ]
+    db.executemany(row_sql, det_rows)
+
+    # Get IDs of newly inserted detections
+    new_det_ids = [r["id"] for r in db.query(
+        "SELECT id FROM detections WHERE ingestion_batch=?", (ingestion_batch,))]
+
+    if not new_det_ids:
+        return {"detections": 0, "sites": 0, "pass_dates": pass_dates, "polygons": len(polys), "alerts_created": 0}
+
+    # --- 2. Load new detections with full data for clustering ---
+    new_dets = [dict(r) for r in db.query(
+        "SELECT id, latitude, longitude, bright_ti4, acq_date, acq_time, frp FROM detections "
+        "WHERE id IN ({})".format(",".join("?" * len(new_det_ids))), tuple(new_det_ids))]
+
+    # --- 3. For each new detection, find or create site (incremental clustering) ---
+    # Get existing sites for proximity check
+    existing_sites = [dict(r) for r in db.query(
+        "SELECT site_id, lat, lon FROM sites")]
+
+    affected_site_ids = set()
+
+    for det in new_dets:
+        lat, lon = det["latitude"], det["longitude"]
+        det_id = det["id"]
+
+        # Find existing site within cluster radius
+        match_sid = None
+        for s in existing_sites:
+            if haversine((lat, lon), (s["lat"], s["lon"]), unit=M) <= CLUSTER_RADIUS_M:
+                match_sid = s["site_id"]
+                break
+
+        if match_sid is None:
+            # Create new site
+            taken = {s["site_id"] for s in existing_sites}
+            sid = _site_id(lat, lon, taken)
+            existing_sites.append({"site_id": sid, "lat": lat, "lon": lon})
+            iso = _iso(det["acq_date"], det.get("acq_time"))
+            db.execute(
+                "INSERT INTO sites (site_id, lat, lon, first_seen, last_seen, max_frp, brightness) "
+                "VALUES (?,?,?,?,?,?,?)",
+                (sid, lat, lon, iso, iso, det.get("frp", 0), det.get("bright_ti4", 0)),
+            )
+            match_sid = sid
+        else:
+            # Update existing site
+            iso = _iso(det["acq_date"], det.get("acq_time"))
+            db.execute(
+                "UPDATE sites SET last_seen=MAX(last_seen,?), max_frp=MAX(max_frp,?), brightness=MAX(brightness,?) "
+                "WHERE site_id=?",
+                (iso, det.get("frp", 0), det.get("bright_ti4", 0), match_sid),
+            )
+
+        # Link detection to site
+        db.execute(
+            "INSERT OR IGNORE INTO site_detections (site_id, detection_id) VALUES (?,?)",
+            (match_sid, det_id),
+        )
+        affected_site_ids.add(match_sid)
+
+    # --- 4. Re-classify only affected sites ---
+    # Need ALL detections for classification context
+    all_det_rows = [dict(r) for r in db.query(
+        "SELECT latitude, longitude, bright_ti4, acq_date, frp FROM detections")]
+
+    created_alerts = 0
+    for sid in affected_site_ids:
+        site = dict(db.query("SELECT * FROM sites WHERE site_id=?", (sid,))[0])
+        month = int(site["last_seen"][5:7])
+        res = classify(site["lat"], site["lon"], all_det_rows, polys, pass_dates, month,
+                       site["max_frp"], site["brightness"])
+        severity = severity_for_frp(site["max_frp"])
+        anomalous = int(severity in ("severe", "extreme"))
+        db.execute(
+            "UPDATE sites SET classification=?, confidence=?, explanation=?, severity=?, "
+            "is_anomalous=?, persistence=?, consec_days=?, duty_cycle_pct=?, "
+            "d_industrial_m=?, d_agri_m=?, d_residential_m=? "
+            "WHERE site_id=?",
+            (res.classification, res.confidence, res.explanation, severity, anomalous,
+             res.features["persistence"], res.features["consec_days"],
+             res.features["duty_cycle_pct"], res.features["d_industrial"],
+             res.features["d_agri"], res.features["d_residential"], sid),
+        )
+        if anomalous:
+            created_alerts += _ensure_alert(sid, severity)
+
+    return {
+        "detections": len(new_det_ids),
+        "sites": len(affected_site_ids),
+        "pass_dates": pass_dates,
+        "polygons": len(polys),
+        "alerts_created": created_alerts,
+    }
+
+
 def ingest_nrt_rows(rows: list[dict], pass_dates: list[str], polys: list[dict],
                     ingestion_batch: str) -> dict:
     """Ingest NRT rows with real provenance (is_synthetic=0, source='firms'),
