@@ -101,7 +101,7 @@ export default function App() {
   return (
     <div className="public">
       <header className="pubhead">
-        <div><b>🔥 ThermalGuard</b><span>Public safety portal — live fire advisories</span></div>
+        <div><b>🛰️ NOCTRA</b><span>Public safety portal — live fire advisories</span></div>
         <button className={`pushbtn ${pushStatus === "on" ? "on" : ""}`} onClick={enablePush} disabled={pushStatus === "on"}>
           {pushStatus === "on" ? "Notifications enabled 🔔" : "Enable notification alerts"}
         </button>
@@ -109,7 +109,7 @@ export default function App() {
 
       <div className="pubhero">
         <h2>{activeCount > 0 ? `${activeCount} active alert${activeCount > 1 ? "s" : ""} near you` : "No active fire alerts"}</h2>
-        <p>Generated from satellite thermal detections, classified by the ThermalGuard engine and confirmed by the district control room.</p>
+        <p>Generated from satellite thermal detections, classified by the NOCTRA engine and confirmed by the district control room.</p>
       </div>
 
       <main className="pubgrid">
@@ -160,7 +160,7 @@ export default function App() {
       </main>
 
       <footer className="pubfoot">
-        ThermalGuard · SIH26162 · CAP 1.2 compliant payloads · SMS via Twilio · Web Push
+        NOCTRA · SIH26162 · CAP 1.2 compliant payloads · SMS via Twilio · Web Push
       </footer>
     </div>
   );

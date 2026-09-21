@@ -142,7 +142,7 @@ export default function App() {
     <div className="app">
       {toast && <div className="toast" onClick={() => setToast(null)}>{toast}</div>}
       <header className="topbar">
-        <div className="brand">🔥 ThermalGuard <span>SIH26162 · District Control Console</span></div>
+        <div className="brand">🛰️ NOCTRA <span>SIH26162 · District Control Console</span></div>
         <div className="pushbadge">Web Push: {pushStatus === "on" ? "enabled 🔔" : pushStatus === "error" ? "blocked" : "off"}</div>
       </header>
 
@@ -267,6 +267,12 @@ export default function App() {
                   frp: {s.max_frp?.toFixed(1)} MW · brightness: {s.brightness?.toFixed(0)}K<br/>
                   {s.explanation}<br/>
                   Last pass: {s.last_pass_date} ({s.days_since_last_pass} days ago)<br/>
+                  <hr style={{margin: '6px 0', borderColor: '#334155'}}/>
+                  <div style={{fontSize: '12px', fontWeight: '600', marginBottom: '4px'}}>Location</div>
+                  <div style={{fontSize: '11px', lineHeight: '1.6'}}>
+                    <div>Lat: <b>{s.lat?.toFixed(5)}</b></div>
+                    <div>Lon: <b>{s.lon?.toFixed(5)}</b></div>
+                  </div>
                   <hr style={{margin: '6px 0', borderColor: '#334155'}}/>
                   <div style={{fontSize: '12px', fontWeight: '600', marginBottom: '4px'}}>Thermal Behavior</div>
                   <div style={{fontSize: '11px', lineHeight: '1.6'}}>
