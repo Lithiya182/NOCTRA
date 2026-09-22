@@ -1,14 +1,21 @@
 """Rule-based fire classifier — the guaranteed-working core (Section 3 of the PS).
 
 Decision order is significant and matches the spec exactly:
-1. industrial_fire   if <=500m from an industrial polygon AND persistence >= 3/5 passes
+1. industrial_fire   if inside industrial polygon OR (within 500m of industrial polygon AND sufficient temporal evidence)
 2. agricultural_burn if inside agri landuse AND short-lived AND in agri months
 3. wildfire          if expanding cluster, frp > 50 MW, far from industrial/agri
 4. other
+
+Evidence-aware classification:
+- Polygon containment is strong spatial evidence for industrial_fire
+- Proximity is supporting evidence, requires temporal evidence
+- Insufficient temporal evidence prevents proximity-based classification
+- FRP intensity is separate from fire type
 """
 from __future__ import annotations
 
-from dataclasses import dataclass
+from dataclasses import dataclass, field
+from typing import Literal
 
 from haversine import haversine, Unit
 
@@ -28,6 +35,25 @@ M = Unit.METERS
 
 CLASSES = ("industrial_fire", "agricultural_burn", "wildfire", "other")
 
+# Minimum observation days for sufficient temporal evidence
+MIN_TEMPORAL_EVIDENCE_DAYS = 3
+
+# Evidence types
+SpatialEvidence = Literal["polygon_containment", "proximity", "none"]
+TemporalEvidence = Literal["persistent", "sufficient", "insufficient"]
+IntensityEvidence = Literal["weak", "moderate", "high-moderate", "high", "very-high"]
+EvidenceSufficiency = Literal["sufficient", "insufficient", "conflicting"]
+
+
+@dataclass
+class Evidence:
+    """Human-readable evidence for classification decision."""
+    spatial: SpatialEvidence
+    temporal: TemporalEvidence
+    intensity: IntensityEvidence
+    sufficiency: EvidenceSufficiency
+    reason: str
+
 
 @dataclass
 class ClassResult:
@@ -35,6 +61,10 @@ class ClassResult:
     confidence: float
     explanation: str
     features: dict
+    evidence: Evidence = field(default_factory=lambda: Evidence(
+        spatial="none", temporal="insufficient", intensity="weak",
+        sufficiency="insufficient", reason="No evidence evaluated"
+    ))
 
 
 def _active_on_last_passes(
@@ -98,11 +128,53 @@ def severity_for_frp(frp: float) -> str:
     return "minor"
 
 
+def _frp_intensity(frp: float) -> IntensityEvidence:
+    """Classify FRP into intensity bands (separate from fire type)."""
+    if frp >= 100:
+        return "very-high"
+    if frp >= 50:
+        return "high"
+    if frp >= 20:
+        return "high-moderate"
+    if frp >= 5:
+        return "moderate"
+    return "weak"
+
+
+def _temporal_evidence(active_on: int, observation_days: int) -> tuple[TemporalEvidence, str]:
+    """Determine temporal evidence and reason.
+    
+    Returns:
+        (temporal_evidence, reason)
+    """
+    if active_on >= 3:
+        return "persistent", f"Active on {active_on}/5 recent passes (persistent)"
+    if observation_days >= 3:
+        return "sufficient", f"{observation_days} observation days (sufficient temporal evidence)"
+    return "insufficient", f"Only {observation_days} observation day(s) — insufficient temporal evidence"
+
+
+def _spatial_evidence(d_ind: float, in_industrial: bool) -> tuple[SpatialEvidence, str]:
+    """Determine spatial evidence and reason."""
+    if d_ind == 0.0:
+        return "polygon_containment", "Inside industrial polygon (strong spatial evidence)"
+    if d_ind <= IND_DIST_M:
+        return "proximity", f"Within {d_ind:.0f}m of industrial polygon (proximity evidence)"
+    return "none", f"No industrial spatial evidence (nearest: {d_ind:.0f}m)"
+
+
 def classify(
     lat: float, lon: float, rows: list[dict], polys: list[dict],
     pass_dates: list[str], month: int, max_frp: float, max_brightness: float,
 ) -> ClassResult:
-    """Classify a site at (lat, lon) using all detections `rows` and OSM `polys`."""
+    """Classify a site at (lat, lon) using all detections `rows` and OSM `polys`.
+    
+    Evidence-aware classification:
+    - Polygon containment (0m, inside) -> strong spatial evidence for industrial_fire
+    - Proximity (<=500m) -> supporting evidence, requires temporal evidence
+    - Insufficient temporal evidence -> prevents proximity-based classification
+    - FRP intensity is separate from fire type
+    """
     nearby, active_on, consec = _active_on_last_passes(lat, lon, rows, pass_dates)
     duty_cycle = (active_on / max(1, len(pass_dates[-5:]))) * 100.0
 
@@ -110,7 +182,18 @@ def classify(
     d_agri = nearest_polygon_dist(lat, lon, polys, "agricultural")
     d_res = nearest_polygon_dist(lat, lon, polys, "residential")
     in_agri = inside_polygon(lat, lon, polys, "agricultural")
+    in_industrial = inside_polygon(lat, lon, polys, "industrial")
     expanded = _cluster_expanded(lat, lon, rows)
+
+    # Temporal evidence
+    observation_days = len(set(r["acq_date"] for r in rows if haversine((lat, lon), (r["latitude"], r["longitude"]), unit=M) <= CLUSTER_RADIUS_M))
+    temporal_evidence, temporal_reason = _temporal_evidence(active_on, observation_days)
+
+    # Spatial evidence
+    spatial_evidence, spatial_reason = _spatial_evidence(d_ind, d_ind == 0.0 or in_industrial)
+
+    # Intensity evidence (separate from fire type)
+    intensity_evidence = _frp_intensity(max_frp)
 
     features = {
         "frp": max_frp,
@@ -125,38 +208,122 @@ def classify(
         "cluster_expanded": expanded,
     }
 
-    # Rule 1: industrial
-    if d_ind <= IND_DIST_M and active_on >= PERSISTENCE_MIN:
-        conf = min(0.99, 0.80 + 0.03 * (active_on - PERSISTENCE_MIN))
-        expl = (
-            f"Within {d_ind:.0f}m of an industrial polygon; active on {active_on} of "
-            f"last 5 passes (persistent burn/flare)."
-        )
-        return ClassResult("industrial_fire", round(conf, 2), expl, features)
+    # --- Rule 1: industrial_fire ---
+    # Strong evidence: polygon containment (inside industrial polygon)
+    # Supporting evidence: proximity (<=500m) + sufficient temporal evidence
+    in_industrial_polygon = in_industrial or d_ind == 0.0
+    proximity_to_industrial = d_ind <= IND_DIST_M
+    sufficient_temporal = observation_days >= MIN_TEMPORAL_EVIDENCE_DAYS or active_on >= PERSISTENCE_MIN
 
-    # Rule 2: agricultural burn
-    if in_agri and consec <= AGR_MAX_CONSEC_DAYS and month in AGR_MONTHS:
-        expl = (
-            f"Inside agricultural landuse and burned only {consec} consecutive day(s) "
-            f"in month {month:02d} (short stubble-season burst)."
-        )
-        return ClassResult("agricultural_burn", 0.75, expl, features)
+    evidence_sufficiency: EvidenceSufficiency = "insufficient"
+    classification = "other"
+    confidence = 0.40
+    explanation = ""
+    spatial: SpatialEvidence = "none"
+    temporal: TemporalEvidence = "insufficient"
+    intensity: IntensityEvidence = _frp_intensity(max_frp)
+    reason = ""
 
-    # Rule 3: wildfire
-    if expanded and max_frp > WILDFIRE_FRP_MIN and min(d_ind, d_agri) > WILDFIRE_DIST_M:
-        conf = min(0.95, 0.70 + max_frp / 400.0)
-        expl = (
-            f"Cluster footprint expanded day-over-day with frp {max_frp:.1f} MW and no "
-            f"industrial/agricultural polygon within 500m -> spreading vegetation fire."
-        )
-        return ClassResult("wildfire", round(conf, 2), expl, features)
+    # Rule 1: industrial_fire
+    if in_industrial_polygon:
+        # Strong evidence: polygon containment
+        spatial = "polygon_containment"
+        temporal = "persistent" if active_on >= PERSISTENCE_MIN else ("sufficient" if observation_days >= MIN_TEMPORAL_EVIDENCE_DAYS else "insufficient")
+        evidence_sufficiency = "sufficient"
+        classification = "industrial_fire"
+        confidence = 0.90
+        reason = f"Inside industrial polygon (strong spatial evidence). {_temporal_evidence(active_on, observation_days)[1]}"
+    elif proximity_to_industrial and sufficient_temporal:
+        # Supporting evidence: proximity + temporal evidence
+        spatial = "proximity"
+        temporal = "persistent" if active_on >= PERSISTENCE_MIN else "sufficient"
+        evidence_sufficiency = "sufficient"
+        classification = "industrial_fire"
+        confidence = 0.80
+        reason = f"Within {d_ind:.0f}m of industrial polygon with {active_on}/5 recent passes ({_temporal_evidence(active_on, observation_days)[1]})"
+    elif proximity_to_industrial and not sufficient_temporal:
+        # Proximity without temporal evidence
+        spatial = "proximity"
+        temporal = "insufficient"
+        evidence_sufficiency = "insufficient"
+        classification = "other"
+        confidence = 0.40
+        reason = f"Within {d_ind:.0f}m of industrial polygon but insufficient temporal evidence ({observation_days} observation day(s)). Need {MIN_TEMPORAL_EVIDENCE_DAYS}+ days or {PERSISTENCE_MIN}+ active passes."
+    else:
+        # No industrial spatial evidence
+        spatial = "none"
+        temporal = "insufficient"
+        evidence_sufficiency = "insufficient"
 
-    # Rule 4: other
-    expl = (
-        f"No rule matched (d_industrial={d_ind:.0f}m, d_agri={d_agri:.0f}m, "
-        f"persistence={active_on}/5, frp={max_frp:.1f} MW, expanded={expanded})."
+    # Rule 2: agricultural_burn (unchanged logic, just add evidence)
+    if classification == "other" and in_agri and consec <= AGR_MAX_CONSEC_DAYS and month in AGR_MONTHS:
+        classification = "agricultural_burn"
+        confidence = 0.75
+        spatial = "polygon_containment" if in_agri else "none"
+        temporal = "sufficient" if observation_days >= MIN_TEMPORAL_EVIDENCE_DAYS else "insufficient"
+        reason = f"Inside agricultural landuse, {consec} consecutive day(s) in month {month:02d} (agricultural season)."
+        evidence_sufficiency = "sufficient" if observation_days >= MIN_TEMPORAL_EVIDENCE_DAYS else "insufficient"
+
+    # Rule 3: wildfire (unchanged threshold)
+    if classification == "other" and expanded and max_frp > WILDFIRE_FRP_MIN and min(d_ind, d_agri) > WILDFIRE_DIST_M:
+        classification = "wildfire"
+        confidence = min(0.95, 0.70 + max_frp / 400.0)
+        spatial = "expansion"
+        temporal = "sufficient" if observation_days >= MIN_TEMPORAL_EVIDENCE_DAYS else "insufficient"
+        reason = f"Cluster expanded day-over-day, FRP {max_frp:.1f} MW, far from industrial/agricultural."
+        evidence_sufficiency = "sufficient" if observation_days >= MIN_TEMPORAL_EVIDENCE_DAYS else "insufficient"
+
+    # Rule 4: other (default)
+    if classification == "other":
+        if not sufficient_temporal and proximity_to_industrial:
+            reason = f"Within {d_ind:.0f}m of industrial polygon but insufficient temporal evidence ({observation_days} observation day(s), {active_on}/5 active passes)."
+        elif not proximity_to_industrial and not in_agri:
+            reason = f"No spatial evidence (nearest industrial: {d_ind:.0f}m, nearest agricultural: {d_agri:.0f}m), insufficient temporal evidence."
+        elif in_agri and month not in AGR_MONTHS:
+            reason = f"Inside agricultural landuse but month {month:02d} not in agricultural season (Apr, May, Oct, Nov)."
+        elif in_agri and consec > AGR_MAX_CONSEC_DAYS:
+            reason = f"Inside agricultural landuse but {consec} consecutive days exceeds agricultural burn threshold ({AGR_MAX_CONSEC_DAYS})."
+        elif expanded and max_frp <= WILDFIRE_FRP_MIN:
+            reason = f"Cluster expanded but FRP {max_frp:.1f} MW below wildfire threshold ({WILDFIRE_FRP_MIN} MW)."
+        elif expanded and min(d_ind, d_agri) <= WILDFIRE_DIST_M:
+            reason = f"Cluster expanded but near industrial/agricultural polygon (d_ind={d_ind:.0f}m, d_agri={d_agri:.0f}m)."
+        else:
+            reason = f"No rule matched (d_ind={d_ind:.0f}m, d_agri={d_agri:.0f}m, persistence={active_on}/5, frp={max_frp:.1f}, expanded={expanded})."
+        evidence_sufficiency = "insufficient"
+
+    # Build evidence object
+    evidence = Evidence(
+        spatial=spatial,
+        temporal=temporal,
+        intensity=_frp_intensity(max_frp),
+        sufficiency=evidence_sufficiency,
+        reason=reason,
     )
-    return ClassResult("other", 0.40, expl, features)
+
+    # Add evidence to features
+    features = {
+        "frp": max_frp,
+        "brightness": max_brightness,
+        "month": month,
+        "d_industrial": d_ind,
+        "d_agri": d_agri,
+        "d_residential": d_res,
+        "duty_cycle_pct": duty_cycle,
+        "persistence": active_on,
+        "consec_days": consec,
+        "cluster_expanded": expanded,
+        "observation_days": observation_days,
+        "in_industrial_polygon": in_industrial,
+        "in_agri_polygon": in_agri,
+    }
+
+    return ClassResult(
+        classification=classification,
+        confidence=round(confidence, 2),
+        explanation=reason,
+        features=features,
+        evidence=evidence,
+    )
 
 
 def feature_vector(result_feats: dict) -> list[float]:
