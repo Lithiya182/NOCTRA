@@ -74,6 +74,15 @@ def _ingest_rows(
         for r in rows
     ])
 
+    # --- polygons table ---
+    if polys:
+        db.execute("DELETE FROM polygons")
+        db.executemany(
+            "INSERT INTO polygons (kind, name, boundary_json) VALUES (?,?,?)",
+            [(p["kind"], p["name"], json.dumps([[lat, lon] for lat, lon in p["ring"]]))
+             for p in polys],
+        )
+
     # --- registry: cluster detections within 1km into sites ---
     # Query ALL detections (real + synthetic) for clustering
     all_det_rows = [dict(r) for r in db.query(
