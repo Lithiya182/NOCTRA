@@ -24,28 +24,6 @@ const COVERAGE_BADGE = {
   uncertain: { label: "Coverage Uncertain", color: "#fd7e14" },
   unknown: { label: "Coverage Unknown", color: "#6c757d" },
 };
-const EVIDENCE_SPATIAL_LABELS = {
-  polygon_containment: "Inside industrial area",
-  proximity: "Near industrial area",
-  none: "No relevant spatial evidence",
-};
-const EVIDENCE_TEMPORAL_LABELS = {
-  persistent: "Persistent activity observed",
-  sufficient: "Sufficient observations",
-  insufficient: "Insufficient temporal evidence",
-};
-const EVIDENCE_INTENSITY_LABELS = {
-  weak: "Weak",
-  moderate: "Moderate",
-  "high-moderate": "High-Moderate",
-  high: "High",
-  "very-high": "Very High / Extreme",
-};
-const EVIDENCE_SUFFICIENCY_LABELS = {
-  sufficient: "Sufficient evidence",
-  insufficient: "Insufficient evidence",
-  conflicting: "Conflicting evidence",
-};
 const NEED_ICON_COLOR = "#3a86ff";
 
 function provenanceBadge(source, isSynthetic) {
@@ -56,22 +34,6 @@ function provenanceBadge(source, isSynthetic) {
 
 function coverageBadge(coverageStatus) {
   return COVERAGE_BADGE[coverageStatus] || COVERAGE_BADGE.unknown;
-}
-
-function evidenceSpatialLabel(spatial) {
-  return EVIDENCE_SPATIAL_LABELS[spatial] || EVIDENCE_SPATIAL_LABELS.none;
-}
-
-function evidenceTemporalLabel(temporal) {
-  return EVIDENCE_TEMPORAL_LABELS[temporal] || EVIDENCE_TEMPORAL_LABELS.insufficient;
-}
-
-function evidenceIntensityLabel(intensity) {
-  return EVIDENCE_INTENSITY_LABELS[intensity] || EVIDENCE_INTENSITY_LABELS.weak;
-}
-
-function evidenceSufficiencyLabel(sufficiency) {
-  return EVIDENCE_SUFFICIENCY_LABELS[sufficiency] || EVIDENCE_SUFFICIENCY_LABELS.insufficient;
 }
 
 function urlBase64ToUint8Array(base64) {
@@ -254,7 +216,21 @@ export default function App() {
             </div>
           </section>
 
-          </aside>
+          <section>
+            <h3>Public needs queue</h3>
+            <p className="hint">"I need help" requests from the public page land here in ~5s.</p>
+            <div className="need-list">
+              {needs.slice(0, 10).map((n) => (
+                <div key={n.id} className="needcard">
+                  <b>{n.kind === "sos" ? "🆘 SOS" : n.kind === "safe" ? "✅ I'm safe" : "❗ Need help"}</b>
+                  <span>{n.lat.toFixed(4)}, {n.lon.toFixed(4)}</span>
+                  <div className="small">{n.message}</div>
+                </div>
+              ))}
+              {!needs.length && <div className="hint">No public requests yet.</div>}
+            </div>
+          </section>
+        </aside>
 
         <main className="maparea">
           <MapContainer center={[23.76, 86.42]} zoom={5} scrollWheelZoom style={{ height: "100%", width: "100%" }}>
@@ -293,87 +269,24 @@ export default function App() {
                   Last pass: {s.last_pass_date} ({s.days_since_last_pass} days ago)<br/>
                   Next expected pass: {s.next_expected_pass_date || '—'}<br/>
                   <hr style={{margin: '6px 0', borderColor: '#334155'}}/>
-                  <div style={{fontSize: '12px', fontWeight: '600', marginBottom: '4px'}}>What</div>
-                  <div style={{fontSize: '11px', lineHeight: '1.6'}}>
-                    <div>Type: <b>{CLASS_LABELS[s.classification]}</b></div>
-                    <div>Subtype: <b>{s.evidence?.subtype || 'No evidence'}</b></div>
-                  </div>
-                  <hr style={{margin: '6px 0', borderColor: '#334155'}}/>
-                  <div style={{fontSize: '12px', fontWeight: '600', marginBottom: '4px'}}>Where</div>
+                  <div style={{fontSize: '12px', fontWeight: '600', marginBottom: '4px'}}>Location</div>
                   <div style={{fontSize: '11px', lineHeight: '1.6'}}>
                     <div>Lat: <b>{s.lat?.toFixed(5)}</b></div>
                     <div>Lon: <b>{s.lon?.toFixed(5)}</b></div>
-                    <div>Nearby: {s.evidence?.nearby_context || 'No context available'}</div>
                   </div>
                   <hr style={{margin: '6px 0', borderColor: '#334155'}}/>
-                  <div style={{fontSize: '12px', fontWeight: '600', marginBottom: '4px'}}>When</div>
+                  <div style={{fontSize: '12px', fontWeight: '600', marginBottom: '4px'}}>Thermal Behavior</div>
                   <div style={{fontSize: '11px', lineHeight: '1.6'}}>
-                    <div>First seen: <b>{s.first_seen}</b></div>
-                    <div>Last pass: <b>{s.last_pass_date} ({s.days_since_last_pass} days ago)</b></div>
-                    <div>Next expected pass: <b>{s.next_expected_pass_date || '—'}</b></div>
-                  </div>
-                  <hr style={{margin: '6px 0', borderColor: '#334155'}}/>
-                  <div style={{fontSize: '12px', fontWeight: '600', marginBottom: '4px'}}>Type</div>
-                  <div style={{fontSize: '11px', lineHeight: '1.6'}}>
-                    <div>Classification: <b>{CLASS_LABELS[s.classification]}</b></div>
-                    <div>Confidence: <b>{s.confidence}</b></div>
-                    <div>Severity: <b>{s.severity}</b></div>
-                  </div>
-                  <hr style={{margin: '6px 0', borderColor: '#334155'}}/>
-                  <div style={{fontSize: '12px', fontWeight: '600', marginBottom: '4px'}}>Subtype</div>
-                  <div style={{fontSize: '11px', lineHeight: '1.6'}}>
-                    <div>Subtype: <b>{s.evidence?.subtype || 'No evidence'}</b></div>
-                  </div>
-                  <hr style={{margin: '6px 0', borderColor: '#334155'}}/>
-                  <div style={{fontSize: '12px', fontWeight: '600', marginBottom: '4px'}}>Thermal Intensity</div>
-                  <div style={{fontSize: '11px', lineHeight: '1.6'}}>
-                    <div>FRP Intensity: <b>{evidenceIntensityLabel(s.frp_intensity)}</b></div>
+                    <div>FRP Intensity: <b>{(s.frp_intensity || '—').replace('-', ' ').toUpperCase()}</b></div>
                     <div>Current FRP: <b>{s.frp_last?.toFixed(1)}</b> MW</div>
                     <div>Max FRP: <b>{s.max_frp?.toFixed(1)}</b> MW</div>
                     <div>Avg FRP: <b>{s.frp_mean?.toFixed(1)}</b> MW (±{s.frp_std?.toFixed(1)} MW)</div>
-                  </div>
-                  <hr style={{margin: '6px 0', borderColor: '#334155'}}/>
-                  <div style={{fontSize: '12px', fontWeight: '600', marginBottom: '4px'}}>Persistence</div>
-                  <div style={{fontSize: '11px', lineHeight: '1.6'}}>
-                    <div>Temporal: <b>{evidenceTemporalLabel(s.evidence?.temporal)}</b></div>
-                    <div>Active passes: <b>{s.active_pass_count ?? '—'}</b> / 5 recent</div>
-                    <div>Observation days: <b>{s.observation_days ?? '—'}</b></div>
-                    <div>Consecutive days: <b>{s.consec_days ?? '—'}</b></div>
-                  </div>
-                  <hr style={{margin: '6px 0', borderColor: '#334155'}}/>
-                  <div style={{fontSize: '12px', fontWeight: '600', marginBottom: '4px'}}>Activity Change</div>
-                  <div style={{fontSize: '11px', lineHeight: '1.6'}}>
-                    <div>FRP Trend: <b>{(s.frp_trend || '—').replace('_', ' ').toUpperCase()}</b></div>
+                    <div>FRP Trend: <b>{s.frp_trend?.replace('_', ' ').toUpperCase()}</b></div>
+                    <div>Observations: <b>{s.detection_count ?? '—'}</b></div>
+                    <div>Active Passes: <b>{s.active_pass_count ?? '—'}</b></div>
+                    <div>Observation Span: <b>{s.days_span ?? '—'}</b> days</div>
                     <div>Expansion: <b>{s.expansion_magnitude !== null && s.expansion_magnitude !== undefined ? s.expansion_magnitude.toFixed(3) + ' km²' : 'insufficient data'}</b></div>
-                    <div>Cluster expanded: <b>{s.cluster_expanded ? 'Yes' : 'No'}</b></div>
-                  </div>
-                  <hr style={{margin: '6px 0', borderColor: '#334155'}}/>
-                  <div style={{fontSize: '12px', fontWeight: '600', marginBottom: '4px'}}>Nearby Context</div>
-                  <div style={{fontSize: '11px', lineHeight: '1.6'}}>
-                    <div>Spatial: <b>{evidenceSpatialLabel(s.evidence?.spatial)}</b></div>
-                    <div>Distance to industrial: <b>{s.d_industrial_m?.toFixed(0) ?? '—'} m</b></div>
-                    <div>Inside industrial polygon: <b>{s.in_industrial_polygon ? 'Yes' : 'No'}</b></div>
-                    <div>Distance to agricultural: <b>{s.d_agri_m?.toFixed(0) ?? '—'} m</b></div>
-                    <div>Inside agricultural polygon: <b>{s.in_agri_polygon ? 'Yes' : 'No'}</b></div>
-                    <div>Distance to residential: <b>{s.d_residential_m?.toFixed(0) ?? '—'} m</b></div>
-                    <div>Inside residential polygon: <b>{s.in_residential_polygon ? 'Yes' : 'No'}</b></div>
-                  </div>
-                  <hr style={{margin: '6px 0', borderColor: '#334155'}}/>
-                  <div style={{fontSize: '12px', fontWeight: '600', marginBottom: '4px'}}>Wind</div>
-                  <div style={{fontSize: '11px', lineHeight: '1.6'}}>
-                    <div>Wind: <b>Not available</b></div>
-                    <div className="small">Fire-spread prediction not supported</div>
-                  </div>
-                  <hr style={{margin: '6px 0', borderColor: '#334155'}}/>
-                  <div style={{fontSize: '12px', fontWeight: '600', marginBottom: '4px'}}>Why Prioritized</div>
-                  <div style={{fontSize: '11px', lineHeight: '1.6'}}>
-                    <div>{s.evidence?.reason || 'No prioritization reason available'}</div>
-                  </div>
-                  <hr style={{margin: '6px 0', borderColor: '#334155'}}/>
-                  <div style={{fontSize: '12px', fontWeight: '600', marginBottom: '4px'}}>Authority Status</div>
-                  <div style={{fontSize: '11px', lineHeight: '1.6'}}>
-                    <div>Status: <b>Unverified</b></div>
-                    <div className="small">No verification workflow completed</div>
+                    <div>Coverage: <b>{(s.coverage_status || 'unknown').toUpperCase()}</b></div>
                   </div>
                 </Popup>
               </CircleMarker>

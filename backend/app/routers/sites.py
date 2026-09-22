@@ -8,7 +8,6 @@ from fastapi import APIRouter, HTTPException
 
 from .. import db, ml_model
 from ..models import SiteRow
-from ..feature_utils import inside_polygon, load_polygons
 
 router = APIRouter(prefix="/api/sites", tags=["sites"])
 
@@ -212,17 +211,6 @@ def _attach_thermal_behavior(sites: list[dict]) -> None:
 
         # Expansion magnitude
         s["expansion_magnitude"] = _compute_expansion_magnitude(lat, lon, site_id)
-
-        # Compute in_industrial_polygon using loaded polygons
-        polys = load_polygons()
-        s["in_industrial_polygon"] = inside_polygon(lat, lon, polys, "industrial")
-
-        # Evidence fields
-        s["evidence_spatial"] = "polygon_containment" if s.get("in_industrial_polygon") else ("proximity" if s.get("d_industrial_m", 999999) <= 500 else "none")
-        s["evidence_temporal"] = "persistent" if s.get("persistence", 0) >= 3 else ("sufficient" if len(set(dates)) >= 3 else "insufficient")
-        s["evidence_intensity"] = _frp_intensity(max_frp)
-        s["evidence_sufficiency"] = "sufficient" if len(set(dates)) >= 3 or s.get("persistence", 0) >= 3 else "insufficient"
-        s["evidence_reason"] = "Evidence computed from spatial and temporal data"
 
 
 def _get_site_coverage(site_id: str) -> tuple[Optional[str], Optional[int], Optional[str]]:
