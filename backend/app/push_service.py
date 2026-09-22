@@ -22,21 +22,28 @@ VAPID_SUBJECT = "mailto:thermalguard@district-control.gov.in"
 
 def _load_or_create_keys(path: Path) -> dict:
     if path.exists():
-        return json.loads(path.read_text(encoding="utf-8"))
+        try:
+            data = json.loads(path.read_text(encoding="utf-8"))
+            priv = data.get("private", "")
+            if priv and not priv.startswith("-----BEGIN"):
+                return data
+        except Exception:
+            pass
+
+    import base64
+    urlb64 = lambda raw: base64.urlsafe_b64encode(raw).decode().rstrip("=")  # noqa: E731
+
     private_key = ec.generate_private_key(ec.SECP256R1())
-    priv_pem = private_key.private_bytes(
-        encoding=serialization.Encoding.PEM,
+    priv_der = private_key.private_bytes(
+        encoding=serialization.Encoding.DER,
         format=serialization.PrivateFormat.PKCS8,
         encryption_algorithm=serialization.NoEncryption(),
-    ).decode()
+    )
     pub = private_key.public_key().public_bytes(
         encoding=serialization.Encoding.X962,
         format=serialization.PublicFormat.UncompressedPoint,
     )
-    # url-safe base64 (no padding) is what the browser expects for VAPID.
-    import base64
-    urlb64 = lambda raw: base64.urlsafe_b64encode(raw).decode().rstrip("=")  # noqa: E731
-    keys = {"private": priv_pem, "public": urlb64(pub)}
+    keys = {"private": urlb64(priv_der), "public": urlb64(pub)}
     path.parent.mkdir(parents=True, exist_ok=True)
     path.write_text(json.dumps(keys, indent=2), encoding="utf-8")
     return keys
@@ -86,8 +93,8 @@ def send_push(title: str, body: str) -> dict:
                 vapid_claims={"sub": VAPID_SUBJECT, "aud": None},
             )
             sent += 1
-        except WebPushException as exc:
+        except Exception as exc:
             log.warning("push failed for %s: %s", s["endpoint"], exc)
-            if getattr(exc, "response", None) and exc.response.status_code in (404, 410):
+            if getattr(exc, "response", None) and getattr(exc.response, "status_code", None) in (404, 410):
                 db.execute("DELETE FROM push_subscriptions WHERE endpoint=?", (s["endpoint"],))
     return {"sent": sent, "total": len(subs)}

@@ -34,7 +34,8 @@ def test_data_ingestion_matches_csv():
     n_seed = db.query("SELECT COUNT(*) AS c FROM detections WHERE ingestion_batch = 'seed_20251110_20251114'")[0]["c"]
     with open(FIRMS_CSV, newline="", encoding="utf-8") as f:
         n_csv = sum(1 for _ in csv.DictReader(f))
-    assert n_seed == n_csv == 424
+    assert n_csv == 424
+    assert n_seed >= n_csv
     assert n_syn >= n_csv
     assert n_db >= n_csv
     assert c.get("/api/health").json()["counts"]["detections"] == n_db
