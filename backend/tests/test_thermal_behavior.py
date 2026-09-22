@@ -162,6 +162,62 @@ def test_sparse_observations_not_inactive():
     print(f"PASS: test_sparse_observations_not_inactive -> {s['site_id']}: persistence={s['persistence']}, detections={s['detection_count']}, active_passes={s['active_pass_count']}")
 
 
+def test_frp_statistics_locking():
+    """Lock in formula for FRP mean, std, frp_last, and count calculations."""
+    from app.routers.sites import _attach_thermal_behavior
+    
+    # 1. Single observation: mean=val, std=None
+    mock_site_single = {"site_id": "MOCK-TG-001", "lat": 23.8, "lon": 86.4, "max_frp": 45.0}
+    # Insert mock detection
+    db.execute(
+        "INSERT OR IGNORE INTO detections (id, latitude, longitude, bright_ti4, acq_date, acq_time, frp, is_synthetic, source, ingestion_batch) "
+        "VALUES (99901, 23.8, 86.4, 340.0, '2026-09-01', '1200', 45.0, 1, 'test', 'test_batch_th')"
+    )
+    db.execute("INSERT OR IGNORE INTO sites (site_id, lat, lon) VALUES ('MOCK-TG-001', 23.8, 86.4)")
+    db.execute("INSERT OR IGNORE INTO site_detections (site_id, detection_id) VALUES ('MOCK-TG-001', 99901)")
+
+    sites = [mock_site_single]
+    _attach_thermal_behavior(sites)
+    s = sites[0]
+    assert s["frp_mean"] == 45.0
+    assert s["frp_std"] is None
+    assert s["frp_last"] == 45.0
+    assert s["detection_count"] == 1
+    assert s["active_pass_count"] == 1
+
+    # Cleanup
+    db.execute("DELETE FROM site_detections WHERE site_id='MOCK-TG-001'")
+    db.execute("DELETE FROM sites WHERE site_id='MOCK-TG-001'")
+    db.execute("DELETE FROM detections WHERE ingestion_batch='test_batch_th'")
+
+
+def test_expansion_magnitude_insufficient_dates():
+    """Verify expansion magnitude returns None when dates < 2."""
+    from app.routers.sites import _compute_expansion_magnitude
+    assert _compute_expansion_magnitude(23.8, 86.4, "NON_EXISTENT_SITE") is None
+
+
+def test_duty_cycle_and_consecutive_days_formulas():
+    """Lock in duty cycle percentage and consecutive day streak formulas."""
+    from app.classifier import _active_on_last_passes
+    lat, lon = 23.8, 86.4
+    rows = [
+        {"latitude": 23.8, "longitude": 86.4, "acq_date": "2026-09-10"},
+        {"latitude": 23.8, "longitude": 86.4, "acq_date": "2026-09-11"},
+        {"latitude": 23.8, "longitude": 86.4, "acq_date": "2026-09-12"},
+        {"latitude": 23.8, "longitude": 86.4, "acq_date": "2026-09-14"}, # gap on 13th
+    ]
+    pass_dates = ["2026-09-10", "2026-09-11", "2026-09-12", "2026-09-13", "2026-09-14"]
+    dates_active, active_on_last5, max_consec = _active_on_last_passes(lat, lon, rows, pass_dates)
+    
+    assert len(dates_active) == 4
+    assert active_on_last5 == 4
+    assert max_consec == 3 # 10, 11, 12 is max streak of 3
+    
+    duty_cycle = (active_on_last5 / max(1, len(pass_dates[-5:]))) * 100.0
+    assert duty_cycle == 80.0
+
+
 if __name__ == "__main__":
     test_frp_intensity_boundaries()
     test_frp_trend_increasing()
@@ -171,4 +227,7 @@ if __name__ == "__main__":
     test_thermal_behavior_real_site()
     test_thermal_behavior_demo_site()
     test_sparse_observations_not_inactive()
+    test_frp_statistics_locking()
+    test_expansion_magnitude_insufficient_dates()
+    test_duty_cycle_and_consecutive_days_formulas()
     print("\n=== ALL THERMAL BEHAVIOR TESTS PASSED ===")
