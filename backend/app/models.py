@@ -67,6 +67,8 @@ class AlertOut(BaseModel):
     is_anomalous: bool
     status: Status
     public_notified: Optional[bool] = None
+    analyst_note: Optional[str] = None
+    reviewed_by: Optional[str] = None
     created_at: str
     updated_at: str
     cap: Optional[dict] = None
@@ -75,6 +77,20 @@ class AlertOut(BaseModel):
 
 class TransitionIn(BaseModel):
     action: Literal["confirm", "dismiss"]
+    analyst_note: Optional[str] = Field(None, max_length=1000)
+    reviewed_by: Optional[str] = Field("analyst", max_length=100)
+
+
+class AlertReviewOut(BaseModel):
+    id: int
+    alert_id: int
+    site_id: str
+    action: str
+    previous_status: Optional[str] = None
+    new_status: str
+    analyst_note: Optional[str] = None
+    reviewed_by: str = "analyst"
+    created_at: str
 
 
 class PolygonOut(BaseModel):

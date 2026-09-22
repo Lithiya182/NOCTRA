@@ -327,12 +327,15 @@ def classify(
 
 
 def feature_vector(result_feats: dict) -> list[float]:
+    d_ind = result_feats.get("d_industrial")
+    d_ag = result_feats.get("d_agri")
+    d_res = result_feats.get("d_residential")
     return [
-        result_feats["frp"],
-        result_feats["brightness"],
-        result_feats["month"],
-        min(result_feats["d_industrial"], 20_000),
-        min(result_feats["d_agri"], 20_000),
-        min(result_feats["d_residential"], 20_000),
-        result_feats["duty_cycle_pct"],
+        result_feats.get("frp", 0.0) or 0.0,
+        result_feats.get("brightness", 0.0) or 0.0,
+        result_feats.get("month", 1) or 1,
+        min(d_ind if d_ind is not None else 20_000, 20_000),
+        min(d_ag if d_ag is not None else 20_000, 20_000),
+        min(d_res if d_res is not None else 20_000, 20_000),
+        result_feats.get("duty_cycle_pct", 0.0) or 0.0,
     ]

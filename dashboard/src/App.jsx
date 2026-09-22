@@ -49,6 +49,7 @@ export default function App() {
   const [polygons, setPolygons] = useState([]);
   const [filters, setFilters] = useState({ industrial_fire: true, agricultural_burn: true, wildfire: true, other: true });
   const [provFilter, setProvFilter] = useState("real"); // 'all' | 'real' | 'demo'
+  const [notes, setNotes] = useState({});
   const [toast, setToast] = useState(null);
   const [pushStatus, setPushStatus] = useState("off");
   const errorShown = useRef({});
@@ -123,7 +124,12 @@ export default function App() {
 
   const transition = async (alert, action) => {
     try {
-      const { data } = await axios.post(`/api/alerts/${alert.id}/transition`, { action });
+      const analystNote = notes[alert.id] || null;
+      const { data } = await axios.post(`/api/alerts/${alert.id}/transition`, {
+        action,
+        analyst_note: analystNote,
+        reviewed_by: "analyst",
+      });
       const sms = data?.dispatched?.sms;
       const push = data?.dispatched?.push;
       setToast(
@@ -202,12 +208,24 @@ export default function App() {
                     <div>{a.site ? `${a.site.lat.toFixed(4)}, ${a.site.lon.toFixed(4)}` : ""}</div>
                     <div className="small">{a.site?.explanation}</div>
                     <div className="small">CAP msgType: {a.cap?.info?.[0]?.severity ?? "—"} / {a.cap?.info?.[0]?.urgency ?? "—"}</div>
+                    {a.analyst_note && (
+                      <div className="analyst-note">📝 {a.analyst_note} <span className="small">({a.reviewed_by || "analyst"})</span></div>
+                    )}
                   </div>
                   {a.status === "alert_triggered" && (
-                    <div className="actions">
-                      <button className="confirm" onClick={() => transition(a, "confirm")}>Confirm → SMS + Web Push</button>
-                      <button className="dismiss" onClick={() => transition(a, "dismiss")}>Dismiss</button>
-                    </div>
+                    <>
+                      <input
+                        className="note-input"
+                        type="text"
+                        placeholder="Add analyst note (optional)..."
+                        value={notes[a.id] || ""}
+                        onChange={(e) => setNotes({ ...notes, [a.id]: e.target.value })}
+                      />
+                      <div className="actions">
+                        <button className="confirm" onClick={() => transition(a, "confirm")}>Confirm → SMS + Web Push</button>
+                        <button className="dismiss" onClick={() => transition(a, "dismiss")}>Dismiss</button>
+                      </div>
+                    </>
                   )}
                   {a.status !== "alert_triggered" && <div className="statussmall">{a.status}</div>}
                 </div>

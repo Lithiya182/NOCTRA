@@ -85,8 +85,23 @@ def init_schema(conn: sqlite3.Connection) -> None:
             status TEXT DEFAULT 'alert_triggered',
             public_notified INTEGER DEFAULT 0,
             cap_json TEXT,
+            analyst_note TEXT,
+            reviewed_by TEXT,
             created_at TEXT,
             updated_at TEXT
+        );
+
+        CREATE TABLE IF NOT EXISTS alert_reviews (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            alert_id INTEGER NOT NULL,
+            site_id TEXT NOT NULL,
+            action TEXT NOT NULL,
+            previous_status TEXT,
+            new_status TEXT NOT NULL,
+            analyst_note TEXT,
+            reviewed_by TEXT DEFAULT 'analyst',
+            created_at TEXT NOT NULL,
+            FOREIGN KEY (alert_id) REFERENCES alerts(id)
         );
 
         CREATE TABLE IF NOT EXISTS needs (
@@ -116,10 +131,20 @@ def init_schema(conn: sqlite3.Connection) -> None:
         CREATE INDEX IF NOT EXISTS idx_det_date ON detections(acq_date);
         CREATE INDEX IF NOT EXISTS idx_sites_class ON sites(classification);
         CREATE INDEX IF NOT EXISTS idx_alerts_status ON alerts(status);
+        CREATE INDEX IF NOT EXISTS idx_alert_reviews_alert ON alert_reviews(alert_id);
+        CREATE INDEX IF NOT EXISTS idx_alert_reviews_site ON alert_reviews(site_id);
         CREATE UNIQUE INDEX IF NOT EXISTS uq_detection_natural_key
             ON detections(latitude, longitude, acq_date, acq_time, satellite);
         """
     )
+    # Lightweight schema migration for existing alerts table
+    table_info = conn.execute("PRAGMA table_info(alerts)").fetchall()
+    col_names = [col["name"] for col in table_info]
+    if "analyst_note" not in col_names:
+        conn.execute("ALTER TABLE alerts ADD COLUMN analyst_note TEXT")
+    if "reviewed_by" not in col_names:
+        conn.execute("ALTER TABLE alerts ADD COLUMN reviewed_by TEXT")
+
     conn.commit()
 
 
@@ -129,8 +154,8 @@ def reset_all() -> None:
     with _lock:
         conn.executescript(
             "DELETE FROM site_detections; DELETE FROM detections; DELETE FROM sites; "
-            "DELETE FROM alerts; DELETE FROM needs; DELETE FROM push_subscriptions; "
-            "DELETE FROM sites; DELETE FROM polygons;"
+            "DELETE FROM alert_reviews; DELETE FROM alerts; DELETE FROM needs; "
+            "DELETE FROM push_subscriptions; DELETE FROM polygons;"
         )
         conn.commit()
 
@@ -138,7 +163,7 @@ def reset_all() -> None:
 def reset_synthetic_only() -> None:
     """Delete only synthetic detections and all derived tables.
     Real detections (is_synthetic=0) are preserved.
-    Derived tables (sites, site_detections, alerts, needs) are cleared and will be rebuilt.
+    Derived tables (sites, site_detections, alerts, needs, alert_reviews) are cleared and will be rebuilt.
     Polygons and push_subscriptions are preserved.
     """
     conn = get_conn()
@@ -148,6 +173,22 @@ def reset_synthetic_only() -> None:
         # Clear all derived tables (they will be rebuilt from remaining real + new synthetic)
         conn.execute("DELETE FROM site_detections")
         conn.execute("DELETE FROM sites")
+        conn.execute("DELETE FROM alert_reviews")
+        conn.execute("DELETE FROM alerts")
+        conn.execute("DELETE FROM needs")
+        # Preserve: polygons, push_subscriptions, real detections
+        conn.commit()
+
+
+def reset_derived_tables() -> None:
+    """Clear only derived tables (sites, site_detections, alerts, needs, alert_reviews).
+    Preserves all detections (real + synthetic) and polygons/push_subscriptions.
+    """
+    conn = get_conn()
+    with _lock:
+        conn.execute("DELETE FROM site_detections")
+        conn.execute("DELETE FROM sites")
+        conn.execute("DELETE FROM alert_reviews")
         conn.execute("DELETE FROM alerts")
         conn.execute("DELETE FROM needs")
         # Preserve: polygons, push_subscriptions, real detections

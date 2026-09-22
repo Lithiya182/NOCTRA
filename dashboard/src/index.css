@@ -47,6 +47,8 @@ code { font-size: 10px; white-space: pre-wrap; display: block; max-height: 120px
 .confirm { background: var(--ok); color: #062a12; }
 .dismiss { background: #475569; color: #fff; }
 .statussmall { margin-top: 6px; font-size: 11px; color: var(--muted); font-style: italic; }
+.note-input { width: 100%; margin-top: 6px; padding: 5px 8px; background: #0f172a; border: 1px solid #334155; border-radius: 4px; color: var(--text); font-size: 11px; }
+.analyst-note { margin-top: 6px; padding: 4px 6px; background: rgba(56, 189, 248, 0.1); border-left: 3px solid var(--accent); border-radius: 4px; font-size: 11px; color: #bae6fd; }
 
 .needcard { background: var(--panel-2); border-radius: 8px; padding: 8px 10px; margin-bottom: 8px; font-size: 13px; }
 
