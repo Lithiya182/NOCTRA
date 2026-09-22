@@ -2,7 +2,6 @@
 from __future__ import annotations
 
 from typing import Literal, Optional
-
 from pydantic import BaseModel, Field
 
 Classification = Literal["industrial_fire", "agricultural_burn", "wildfire", "other"]
@@ -10,6 +9,12 @@ Severity = Literal["minor", "moderate", "severe", "extreme"]
 Status = Literal["routine", "alert_triggered", "confirmed", "dismissed"]
 FRPTrend = Literal["increasing", "decreasing", "stable", "insufficient_data"]
 FRPIntensity = Literal["weak", "moderate", "high-moderate", "high", "very-high"]
+
+# Evidence types for SiteRow
+SpatialEvidence = Literal["polygon_containment", "proximity", "none"]
+TemporalEvidence = Literal["persistent", "sufficient", "insufficient"]
+IntensityEvidence = Literal["weak", "moderate", "high-moderate", "high", "very-high"]
+EvidenceSufficiency = Literal["sufficient", "insufficient", "conflicting"]
 
 
 class SiteOfInterest(BaseModel):
@@ -58,6 +63,12 @@ class SiteRow(BaseModel):
     days_span: Optional[int] = None
     expansion_magnitude: Optional[float] = None
     frp_intensity: Optional[FRPIntensity] = None
+    # Evidence fields
+    evidence_spatial: Optional[str] = None
+    evidence_temporal: Optional[str] = None
+    evidence_intensity: Optional[str] = None
+    evidence_sufficiency: Optional[str] = None
+    evidence_reason: Optional[str] = None
 
 
 class AlertOut(BaseModel):
