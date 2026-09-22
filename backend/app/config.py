@@ -21,6 +21,7 @@ if not CORS_ORIGINS:
     CORS_ORIGINS = ["http://localhost:5173", "http://localhost:5174"]
 
 FIRMS_MAP_KEY = os.getenv("FIRMS_MAP_KEY", "")
+ENABLE_FIRMS_SCHEDULER = os.getenv("ENABLE_FIRMS_SCHEDULER", "false").lower() == "true"
 TWILIO_SID = os.getenv("TWILIO_SID", "")
 TWILIO_AUTH_TOKEN = os.getenv("TWILIO_AUTH_TOKEN", "")
 TWILIO_FROM_NUMBER = os.getenv("TWILIO_FROM_NUMBER", "")

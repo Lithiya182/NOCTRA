@@ -232,16 +232,15 @@ class TestFetchAndIngestJob:
         from app.firms_scheduler import STATE_FILE
         assert STATE_FILE.exists()
         content = STATE_FILE.read_text().strip()
-        # Should be today's date
-        from datetime import date
-        assert content == date.today().isoformat()
+        from datetime import datetime, timezone
+        assert content == datetime.now(timezone.utc).date().isoformat()
 
     def test_valid_fetch_advances_state(
         self, mock_firms_key, temp_state_file, mock_ingest_nrt_rows, mock_load_polygons
     ):
         """Valid fetch with data advances state after successful ingestion."""
         import app.firms_scheduler as sched
-        from datetime import date
+        from datetime import datetime, timezone
         
         mock_rows = [{
             "latitude": "23.0", "longitude": "86.0", "bright_ti4": "300.0",
@@ -257,7 +256,7 @@ class TestFetchAndIngestJob:
         from app.firms_scheduler import STATE_FILE
         assert STATE_FILE.exists()
         content = STATE_FILE.read_text().strip()
-        assert content == date.today().isoformat()
+        assert content == datetime.now(timezone.utc).date().isoformat()
 
     def test_ingestion_failure_does_not_advance_state(
         self, mock_firms_key, temp_state_file, mock_load_polygons
@@ -316,6 +315,31 @@ class TestSchedulerConfiguration:
         
         from app.firms_scheduler import _scheduler
         assert _scheduler is None or not _scheduler.running
+
+    def test_lifespan_scheduler_toggle_off(self, monkeypatch):
+        """Verify scheduler remains stopped when ENABLE_FIRMS_SCHEDULER=false."""
+        monkeypatch.setenv("ENABLE_FIRMS_SCHEDULER", "false")
+        from app.firms_scheduler import stop_scheduler, get_scheduler
+        stop_scheduler()
+        
+        from fastapi.testclient import TestClient
+        from app.main import app
+        with TestClient(app):
+            assert not get_scheduler().running
+
+    def test_lifespan_scheduler_toggle_on(self, monkeypatch):
+        """Verify scheduler starts during lifespan when ENABLE_FIRMS_SCHEDULER=true."""
+        monkeypatch.setenv("ENABLE_FIRMS_SCHEDULER", "true")
+        from app.firms_scheduler import stop_scheduler, get_scheduler
+        stop_scheduler()
+
+        try:
+            from fastapi.testclient import TestClient
+            from app.main import app
+            with TestClient(app):
+                assert get_scheduler().running
+        finally:
+            stop_scheduler()
 
 
 # ============================================================================

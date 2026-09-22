@@ -53,8 +53,28 @@ async def lifespan(app: FastAPI):
     else:
         logging.info("ML training disabled (set ENABLE_ML_TRAINING=true to enable)")
     
+    # FIRMS scheduler is gated behind ENABLE_FIRMS_SCHEDULER env var
+    if os.getenv("ENABLE_FIRMS_SCHEDULER", "false").lower() == "true":
+        try:
+            from .firms_scheduler import start_scheduler
+            start_scheduler()
+            logging.info("startup: FIRMS NRT scheduler started (ENABLE_FIRMS_SCHEDULER=true)")
+        except Exception:  # noqa: BLE001
+            logging.warning("startup: failed to start FIRMS NRT scheduler", exc_info=True)
+    else:
+        logging.info("startup: FIRMS scheduler disabled (set ENABLE_FIRMS_SCHEDULER=true to enable)")
+
     logging.info("startup complete: %s", summary)
     yield
+
+    # Lifespan shutdown: stop scheduler if it was enabled
+    if os.getenv("ENABLE_FIRMS_SCHEDULER", "false").lower() == "true":
+        try:
+            from .firms_scheduler import stop_scheduler
+            stop_scheduler()
+            logging.info("shutdown: FIRMS NRT scheduler stopped")
+        except Exception:  # noqa: BLE001
+            pass
 
 
 app = FastAPI(

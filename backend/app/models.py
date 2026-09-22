@@ -85,9 +85,9 @@ class PolygonOut(BaseModel):
 
 class NeedIn(BaseModel):
     kind: Literal["sos", "safe", "help"] = "help"
-    lat: float
-    lon: float
-    message: str = ""
+    lat: float = Field(..., ge=-90.0, le=90.0, description="Latitude (-90 to 90)")
+    lon: float = Field(..., ge=-180.0, le=180.0, description="Longitude (-180 to 180)")
+    message: str = Field("", max_length=1000, description="Message (max 1000 chars)")
 
 
 class NeedOut(BaseModel):
@@ -106,10 +106,10 @@ class PushSubscribeIn(BaseModel):
 
 
 class RuntimeDetectionIn(BaseModel):
-    lat: float
-    lon: float
-    frp: float = 120.0
-    brightness: float = 360.0
+    lat: float = Field(..., ge=-90.0, le=90.0, description="Latitude (-90 to 90)")
+    lon: float = Field(..., ge=-180.0, le=180.0, description="Longitude (-180 to 180)")
+    frp: float = Field(120.0, ge=0.0, description="FRP in MW (non-negative)")
+    brightness: float = Field(360.0, ge=0.0, description="Brightness in Kelvin (non-negative)")
 
 
 class IngestOut(BaseModel):
