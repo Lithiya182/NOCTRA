@@ -6,13 +6,16 @@
 
 ---
 
-## 1. Active Learning Architecture & Retraining Pipeline
-- **Feedback Data Ingestion**: Pulls human analyst feedback from the append-only `alert_reviews` table, `alerts` table feedback transitions (`feedback_label`, `analyst_note`, `reviewed_by`), and site conflict records (`visual_evidence == 'conflicting'`).
-- **Correction Diversity Analysis**: Analyzes human correction signals across all 19 conflicting sites from Phase 9:
+## 1. Active Learning Architecture & Data Source Distinction
+- **Data Source Audit**: An empirical database audit confirms **0 confirmed alerts, 0 dismissed alerts, and 0 rows in `alert_reviews`**.
+- **Data Source Distinction**:
+  1. **Phase 9 Structural Fusion Flags (19 real site records)**: The 19 correction records evaluated in Phase 10 stem strictly from Phase 9's structural evidence fusion conflict flags (`visual_evidence == 'conflicting'`), where rule-based thermal labels act as authoritative ground truth to correct Phase 8 CNN visual false positives.
+  2. **Human Operator Reviews (`alert_reviews` table)**: The active learning pipeline is also built to ingest human confirm/dismiss actions and feedback labels (`feedback_label`, `analyst_note`, `reviewed_by`), which currently count 0 rows in the database baseline.
+- **Correction Diversity Analysis**: Analyzes the 19 structural conflict flags from Phase 9:
   - **Near-duplicate cases**: 17 sites (89.5%) clustered at CNN confidence $\approx 0.5391$ (a decision-boundary threshold artifact in the balanced Random Forest).
   - **Distinct cases**: 2 sites (10.5%) with higher confidence $\approx 0.6846$.
 - **Model Refitting & Metric Evaluation**:
-  - Re-fits models (`ml_model.py` and `cnn_visual.py`) using human corrections as authoritative overrides for weak labels.
+  - Re-fits models (`ml_model.py` and `cnn_visual.py`) using authoritative thermal labels on conflict flags to correct CNN false positives.
   - Evaluates baseline vs. post-retrain metrics on the held-out test split ($N=10$ test samples, $N_{\text{test\_pos}}=2$).
   - Logs append-only audit entries to `audit/active_learning_log.txt`.
 
@@ -50,7 +53,7 @@ As required by Global Rules (§0) and Phase 10 guidelines, the zero metric delta
    - With such a small test set, subtle model weight adjustments do not shift discrete predictions on held-out samples.
 
 2. **Lack of Correction Diversity**:
-   - **17 out of 19 (89.5%)** of the conflict corrections stem from the exact same narrow decision-boundary threshold artifact (`confidence ≈ 0.5391`).
+   - **17 out of 19 (89.5%)** of the structural conflict corrections stem from the exact same narrow decision-boundary threshold artifact (`confidence ≈ 0.5391`).
    - These 17 near-duplicate corrections do not represent 19 independent error cases or diverse feature patterns; they represent repetition of a single boundary artifact. Consequently, feeding them into retraining does not provide novel discriminative signal to improve held-out precision.
 
 ---
