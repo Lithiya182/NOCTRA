@@ -50,6 +50,25 @@ code { font-size: 10px; white-space: pre-wrap; display: block; max-height: 120px
 .note-input { width: 100%; margin-top: 6px; padding: 5px 8px; background: #0f172a; border: 1px solid #334155; border-radius: 4px; color: var(--text); font-size: 11px; }
 .analyst-note { margin-top: 6px; padding: 4px 6px; background: rgba(56, 189, 248, 0.1); border-left: 3px solid var(--accent); border-radius: 4px; font-size: 11px; color: #bae6fd; }
 
+.feedback-row { display: flex; align-items: center; justify-content: space-between; margin-top: 8px; padding-top: 6px; border-top: 1px dashed #334155; }
+.feedback-btns { display: flex; gap: 6px; }
+.feedback-btn { padding: 3px 8px; border: 1px solid #334155; border-radius: 4px; background: #0f172a; color: var(--muted); font-size: 11px; cursor: pointer; transition: all 0.2s; }
+.feedback-btn:hover { background: #1e293b; color: var(--text); border-color: var(--accent); }
+.feedback-badge { font-size: 11px; font-weight: 600; padding: 2px 6px; border-radius: 4px; }
+.feedback-badge.correct { background: rgba(45, 198, 83, 0.2); color: #4ade80; border: 1px solid rgba(45, 198, 83, 0.4); }
+.feedback-badge.incorrect { background: rgba(230, 57, 70, 0.2); color: #f87171; border: 1px solid rgba(230, 57, 70, 0.4); }
+
+.imagery-panel { margin-top: 8px; font-size: 11px; border-top: 1px solid #334155; padding-top: 6px; }
+.imagery-title { font-weight: 700; color: var(--accent); margin-bottom: 4px; }
+.imagery-placeholder-box { background: #0f172a; border: 1px dashed #334155; border-radius: 6px; padding: 10px; text-align: center; color: var(--muted); }
+.imagery-icon { font-size: 18px; display: block; margin-bottom: 2px; }
+.imagery-subhint { font-size: 10px; opacity: 0.75; margin-top: 2px; }
+.imagery-grid { display: flex; flex-direction: column; gap: 6px; }
+.imagery-card { background: #0f172a; border: 1px solid #334155; border-radius: 4px; padding: 6px; display: flex; gap: 8px; align-items: center; }
+.imagery-thumb { width: 48px; height: 48px; object-fit: cover; border-radius: 4px; }
+.imagery-no-thumb { width: 48px; height: 48px; background: #1e293b; border-radius: 4px; display: flex; align-items: center; justify-content: center; font-size: 9px; color: var(--muted); }
+.imagery-meta { display: flex; flex-direction: column; gap: 2px; }
+
 .needcard { background: var(--panel-2); border-radius: 8px; padding: 8px 10px; margin-bottom: 8px; font-size: 13px; }
 
 .toast { position: fixed; top: 56px; right: 16px; z-index: 2000; background: #064e3b; color: #ecfdf5; padding: 10px 14px; border-radius: 8px; max-width: 420px; font-size: 13px; box-shadow: 0 6px 20px rgba(0,0,0,.4); cursor: pointer; }

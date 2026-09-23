@@ -87,6 +87,7 @@ def init_schema(conn: sqlite3.Connection) -> None:
             cap_json TEXT,
             analyst_note TEXT,
             reviewed_by TEXT,
+            feedback_label TEXT,
             created_at TEXT,
             updated_at TEXT
         );
@@ -100,8 +101,21 @@ def init_schema(conn: sqlite3.Connection) -> None:
             new_status TEXT NOT NULL,
             analyst_note TEXT,
             reviewed_by TEXT DEFAULT 'analyst',
+            feedback_label TEXT,
             created_at TEXT NOT NULL,
             FOREIGN KEY (alert_id) REFERENCES alerts(id)
+        );
+
+        CREATE TABLE IF NOT EXISTS imagery (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            site_id TEXT NOT NULL,
+            acquired_date TEXT,
+            source TEXT DEFAULT 'sentinel2-l2a',
+            cloud_cover_pct REAL,
+            file_path TEXT,
+            is_synthetic INTEGER DEFAULT 0,
+            status TEXT DEFAULT 'available',
+            created_at TEXT
         );
 
         CREATE TABLE IF NOT EXISTS needs (
@@ -133,17 +147,25 @@ def init_schema(conn: sqlite3.Connection) -> None:
         CREATE INDEX IF NOT EXISTS idx_alerts_status ON alerts(status);
         CREATE INDEX IF NOT EXISTS idx_alert_reviews_alert ON alert_reviews(alert_id);
         CREATE INDEX IF NOT EXISTS idx_alert_reviews_site ON alert_reviews(site_id);
+        CREATE INDEX IF NOT EXISTS idx_imagery_site ON imagery(site_id);
         CREATE UNIQUE INDEX IF NOT EXISTS uq_detection_natural_key
             ON detections(latitude, longitude, acq_date, acq_time, satellite);
         """
     )
-    # Lightweight schema migration for existing alerts table
+    # Lightweight schema migration for existing tables
     table_info = conn.execute("PRAGMA table_info(alerts)").fetchall()
     col_names = [col["name"] for col in table_info]
     if "analyst_note" not in col_names:
         conn.execute("ALTER TABLE alerts ADD COLUMN analyst_note TEXT")
     if "reviewed_by" not in col_names:
         conn.execute("ALTER TABLE alerts ADD COLUMN reviewed_by TEXT")
+    if "feedback_label" not in col_names:
+        conn.execute("ALTER TABLE alerts ADD COLUMN feedback_label TEXT")
+
+    table_info_rev = conn.execute("PRAGMA table_info(alert_reviews)").fetchall()
+    col_names_rev = [col["name"] for col in table_info_rev]
+    if "feedback_label" not in col_names_rev:
+        conn.execute("ALTER TABLE alert_reviews ADD COLUMN feedback_label TEXT")
 
     conn.commit()
 
@@ -155,7 +177,7 @@ def reset_all() -> None:
         conn.executescript(
             "DELETE FROM site_detections; DELETE FROM detections; DELETE FROM sites; "
             "DELETE FROM alert_reviews; DELETE FROM alerts; DELETE FROM needs; "
-            "DELETE FROM push_subscriptions; DELETE FROM polygons;"
+            "DELETE FROM push_subscriptions; DELETE FROM polygons; DELETE FROM imagery;"
         )
         conn.commit()
 

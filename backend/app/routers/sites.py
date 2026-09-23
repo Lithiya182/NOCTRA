@@ -7,7 +7,7 @@ from typing import Optional
 from fastapi import APIRouter, HTTPException
 
 from .. import db, ml_model
-from ..models import SiteRow
+from ..models import ImageryOut, SiteRow
 
 router = APIRouter(prefix="/api/sites", tags=["sites"])
 
@@ -341,3 +341,13 @@ def get_site(site_id: str) -> SiteRow:
     _attach_coverage([row])
     _attach_thermal_behavior([row])
     return _to_row(row)
+
+
+@router.get("/{site_id}/imagery", response_model=list[ImageryOut])
+def get_site_imagery(site_id: str) -> list[ImageryOut]:
+    """Retrieve acquired satellite optical imagery chips for a site."""
+    site_rows = db.query("SELECT site_id FROM sites WHERE site_id=?", (site_id,))
+    if not site_rows:
+        raise HTTPException(404, "site not found")
+    rows = db.query("SELECT * FROM imagery WHERE site_id=? ORDER BY acquired_date DESC", (site_id,))
+    return [dict(r) for r in rows]

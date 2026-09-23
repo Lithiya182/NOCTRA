@@ -69,6 +69,7 @@ class AlertOut(BaseModel):
     public_notified: Optional[bool] = None
     analyst_note: Optional[str] = None
     reviewed_by: Optional[str] = None
+    feedback_label: Optional[str] = None
     created_at: str
     updated_at: str
     cap: Optional[dict] = None
@@ -77,6 +78,13 @@ class AlertOut(BaseModel):
 
 class TransitionIn(BaseModel):
     action: Literal["confirm", "dismiss"]
+    analyst_note: Optional[str] = Field(None, max_length=1000)
+    reviewed_by: Optional[str] = Field("analyst", max_length=100)
+    feedback_label: Optional[Literal["correct", "incorrect"]] = None
+
+
+class FeedbackIn(BaseModel):
+    feedback: Literal["correct", "incorrect"]
     analyst_note: Optional[str] = Field(None, max_length=1000)
     reviewed_by: Optional[str] = Field("analyst", max_length=100)
 
@@ -90,7 +98,20 @@ class AlertReviewOut(BaseModel):
     new_status: str
     analyst_note: Optional[str] = None
     reviewed_by: str = "analyst"
+    feedback_label: Optional[str] = None
     created_at: str
+
+
+class ImageryOut(BaseModel):
+    id: int
+    site_id: str
+    acquired_date: Optional[str] = None
+    source: str = "sentinel2-l2a"
+    cloud_cover_pct: Optional[float] = None
+    file_path: Optional[str] = None
+    is_synthetic: bool = False
+    status: str = "available"
+    created_at: Optional[str] = None
 
 
 class PolygonOut(BaseModel):

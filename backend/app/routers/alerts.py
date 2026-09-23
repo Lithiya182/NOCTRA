@@ -3,7 +3,7 @@ from __future__ import annotations
 from fastapi import APIRouter, HTTPException
 
 from .. import alert_engine
-from ..models import AlertOut, AlertReviewOut, TransitionIn
+from ..models import AlertOut, AlertReviewOut, FeedbackIn, TransitionIn
 
 router = APIRouter(prefix="/api/alerts", tags=["alerts"])
 
@@ -34,6 +34,21 @@ def transition(alert_id: int, body: TransitionIn) -> dict:
         return alert_engine.update_alert_status(
             alert_id,
             action=body.action,
+            analyst_note=body.analyst_note,
+            reviewed_by=body.reviewed_by,
+            feedback_label=body.feedback_label,
+        )
+    except LookupError as exc:
+        raise HTTPException(404, str(exc)) from exc
+
+
+@router.post("/{alert_id}/feedback", response_model=dict)
+def record_feedback(alert_id: int, body: FeedbackIn) -> dict:
+    """Submit human review feedback (thumbs up / thumbs down) for alert classification."""
+    try:
+        return alert_engine.record_feedback(
+            alert_id,
+            feedback=body.feedback,
             analyst_note=body.analyst_note,
             reviewed_by=body.reviewed_by,
         )

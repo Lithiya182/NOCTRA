@@ -46,6 +46,7 @@ def update_alert_status(
     action: str,
     analyst_note: str | None = None,
     reviewed_by: str | None = "analyst",
+    feedback_label: str | None = None,
 ) -> dict:
     """action: confirm | dismiss. Confirm fires the public tier (SMS + push)."""
     rows = db.query("SELECT * FROM alerts WHERE id=?", (alert_id,))
@@ -58,29 +59,64 @@ def update_alert_status(
     
     # Update alerts table
     db.execute(
-        "UPDATE alerts SET status=?, updated_at=?, analyst_note=?, reviewed_by=? WHERE id=?",
-        (status, now, analyst_note, reviewed_by or "analyst", alert_id),
+        "UPDATE alerts SET status=?, updated_at=?, analyst_note=?, reviewed_by=?, feedback_label=? WHERE id=?",
+        (status, now, analyst_note, reviewed_by or "analyst", feedback_label, alert_id),
     )
     db.execute("UPDATE sites SET status=? WHERE site_id=?", (status, alert["site_id"]))
     
     # Write append-only record to alert_reviews audit table
     db.execute(
         """
-        INSERT INTO alert_reviews (alert_id, site_id, action, previous_status, new_status, analyst_note, reviewed_by, created_at)
-        VALUES (?, ?, ?, ?, ?, ?, ?, ?)
+        INSERT INTO alert_reviews (alert_id, site_id, action, previous_status, new_status, analyst_note, reviewed_by, feedback_label, created_at)
+        VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
         """,
-        (alert_id, alert["site_id"], action, prev_status, status, analyst_note, reviewed_by or "analyst", now),
+        (alert_id, alert["site_id"], action, prev_status, status, analyst_note, reviewed_by or "analyst", feedback_label, now),
     )
     
     alert["status"] = status
     alert["updated_at"] = now
     alert["analyst_note"] = analyst_note
     alert["reviewed_by"] = reviewed_by or "analyst"
+    alert["feedback_label"] = feedback_label
 
     dispatched = {}
     if status == "confirmed":
         dispatched = dispatch_public(alert)
     return {"alert": _as_dict(alert), "dispatched": dispatched}
+
+
+def record_feedback(
+    alert_id: int,
+    feedback: str,
+    analyst_note: str | None = None,
+    reviewed_by: str | None = "analyst",
+) -> dict:
+    """Record human classification review feedback (correct/incorrect) in alerts and append-only audit trail."""
+    rows = db.query("SELECT * FROM alerts WHERE id=?", (alert_id,))
+    if not rows:
+        raise LookupError(f"alert {alert_id} not found")
+    alert = dict(rows[0])
+    now = datetime.now(timezone.utc).isoformat(timespec="seconds")
+    
+    db.execute(
+        "UPDATE alerts SET feedback_label=?, updated_at=?, analyst_note=COALESCE(?, analyst_note), reviewed_by=? WHERE id=?",
+        (feedback, now, analyst_note, reviewed_by or "analyst", alert_id),
+    )
+    
+    db.execute(
+        """
+        INSERT INTO alert_reviews (alert_id, site_id, action, previous_status, new_status, analyst_note, reviewed_by, feedback_label, created_at)
+        VALUES (?, ?, 'feedback', ?, ?, ?, ?, ?, ?)
+        """,
+        (alert_id, alert["site_id"], alert.get("status"), alert.get("status"), analyst_note, reviewed_by or "analyst", feedback, now),
+    )
+    
+    alert["feedback_label"] = feedback
+    alert["updated_at"] = now
+    if analyst_note:
+        alert["analyst_note"] = analyst_note
+    alert["reviewed_by"] = reviewed_by or "analyst"
+    return {"alert": _as_dict(alert), "feedback": feedback}
 
 
 def get_alert_reviews(alert_id: int | None = None) -> list[dict]:

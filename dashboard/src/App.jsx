@@ -42,6 +42,65 @@ function urlBase64ToUint8Array(base64) {
   return Uint8Array.from([...raw].map((c) => c.charCodeAt(0)));
 }
 
+function SatelliteImageryPanel({ siteId }) {
+  const [imagery, setImagery] = useState([]);
+  const [loading, setLoading] = useState(true);
+
+  useEffect(() => {
+    let active = true;
+    axios.get(`/api/sites/${siteId}/imagery`)
+      .then((r) => { if (active) { setImagery(r.data); setLoading(false); } })
+      .catch(() => { if (active) { setImagery([]); setLoading(false); } });
+    return () => { active = false; };
+  }, [siteId]);
+
+  if (loading) {
+    return (
+      <div className="imagery-panel">
+        <div className="imagery-title">🛰️ Satellite Snapshot</div>
+        <div className="hint">Checking imagery…</div>
+      </div>
+    );
+  }
+
+  if (!imagery || imagery.length === 0) {
+    return (
+      <div className="imagery-panel">
+        <div className="imagery-title">🛰️ Satellite Snapshot (Sentinel-2 L2A)</div>
+        <div className="imagery-placeholder-box">
+          <span className="imagery-icon">🛰️</span>
+          <div>No optical imagery acquired yet</div>
+          <div className="imagery-subhint">Sentinel-2 STAC fetch pending (Phase 7)</div>
+        </div>
+      </div>
+    );
+  }
+
+  return (
+    <div className="imagery-panel">
+      <div className="imagery-title">🛰️ Satellite Snapshots ({imagery.length})</div>
+      <div className="imagery-grid">
+        {imagery.map((img) => (
+          <div key={img.id} className="imagery-card">
+            {img.file_path ? (
+              <img src={img.file_path} alt={`Sentinel-2 ${img.acquired_date}`} className="imagery-thumb" />
+            ) : (
+              <div className="imagery-no-thumb">No Image</div>
+            )}
+            <div className="imagery-meta">
+              <div>Date: <b>{img.acquired_date || "—"}</b></div>
+              <div>Cloud: <b>{img.cloud_cover_pct != null ? `${img.cloud_cover_pct.toFixed(1)}%` : "—"}</b></div>
+              <span className="prov-badge" style={{ background: img.is_synthetic ? "#6c757d" : "#198754" }}>
+                {img.is_synthetic ? "Synthetic" : "Copernicus"}
+              </span>
+            </div>
+          </div>
+        ))}
+      </div>
+    </div>
+  );
+}
+
 export default function App() {
   const [sites, setSites] = useState([]);
   const [alerts, setAlerts] = useState([]);
@@ -142,6 +201,20 @@ export default function App() {
     }
   };
 
+  const submitFeedback = async (alert, feedback) => {
+    try {
+      const analystNote = notes[alert.id] || null;
+      await axios.post(`/api/alerts/${alert.id}/feedback`, {
+        feedback,
+        analyst_note: analystNote,
+        reviewed_by: "analyst",
+      });
+      setToast(`Feedback logged: ${feedback === "correct" ? "👍 Verified Correct" : "👎 Misclassified"} for Alert #${alert.id}`);
+    } catch (e) {
+      setToast(`feedback submission failed: ${e.message}`);
+    }
+  };
+
   const toggleFilter = (k) => setFilters((f) => ({ ...f, [k]: !f[k] }));
 
   return (
@@ -210,6 +283,19 @@ export default function App() {
                     <div className="small">CAP msgType: {a.cap?.info?.[0]?.severity ?? "—"} / {a.cap?.info?.[0]?.urgency ?? "—"}</div>
                     {a.analyst_note && (
                       <div className="analyst-note">📝 {a.analyst_note} <span className="small">({a.reviewed_by || "analyst"})</span></div>
+                    )}
+                  </div>
+                  <div className="feedback-row">
+                    <span className="small">Human review:</span>
+                    {a.feedback_label ? (
+                      <span className={`feedback-badge ${a.feedback_label}`}>
+                        {a.feedback_label === "correct" ? "👍 Verified Correct" : "👎 Misclassified"}
+                      </span>
+                    ) : (
+                      <div className="feedback-btns">
+                        <button className="feedback-btn" title="Confirm classification is correct" onClick={() => submitFeedback(a, "correct")}>👍 Correct</button>
+                        <button className="feedback-btn" title="Flag misclassification" onClick={() => submitFeedback(a, "incorrect")}>👎 Incorrect</button>
+                      </div>
                     )}
                   </div>
                   {a.status === "alert_triggered" && (
@@ -306,6 +392,8 @@ export default function App() {
                     <div>Expansion: <b>{s.expansion_magnitude !== null && s.expansion_magnitude !== undefined ? s.expansion_magnitude.toFixed(3) + ' km²' : 'insufficient data'}</b></div>
                     <div>Coverage: <b>{(s.coverage_status || 'unknown').toUpperCase()}</b></div>
                   </div>
+                  <hr style={{margin: '6px 0', borderColor: '#334155'}}/>
+                  <SatelliteImageryPanel siteId={s.site_id} />
                 </Popup>
               </CircleMarker>
             ))}
