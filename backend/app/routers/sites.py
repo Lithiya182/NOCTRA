@@ -299,6 +299,11 @@ def _to_row(r: dict) -> SiteRow:
     r["visual_evidence"] = fused_result.evidence.visual
     r["evidence_sufficiency"] = fused_result.evidence.sufficiency
 
+    from .. import rl_policy
+    prio, prio_conf = rl_policy.suggest_priority(r)
+    r["suggested_priority"] = prio
+    r["suggested_priority_confidence"] = prio_conf
+
     return SiteRow(**r)
 
 

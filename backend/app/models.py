@@ -62,6 +62,8 @@ class SiteRow(BaseModel):
     cnn_confidence: Optional[float] = None
     visual_evidence: Optional[str] = "none"
     evidence_sufficiency: Optional[str] = None
+    suggested_priority: Optional[str] = None
+    suggested_priority_confidence: Optional[float] = None
 
 
 class AlertOut(BaseModel):
@@ -78,6 +80,8 @@ class AlertOut(BaseModel):
     updated_at: str
     cap: Optional[dict] = None
     site: Optional[SiteRow] = None
+    suggested_priority: Optional[str] = None
+    suggested_priority_confidence: Optional[float] = None
 
 
 class TransitionIn(BaseModel):

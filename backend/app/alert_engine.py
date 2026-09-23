@@ -37,6 +37,12 @@ def get_alerts() -> list[dict]:
             a["cap"] = None
         site = db.query("SELECT * FROM sites WHERE site_id=?", (a["site_id"],))
         a["site"] = dict(site[0]) if site else None
+        
+        from . import rl_policy
+        prio, prio_conf = rl_policy.suggest_priority(a["site"] or a)
+        a["suggested_priority"] = prio
+        a["suggested_priority_confidence"] = prio_conf
+
         out.append(a)
     return out
 
