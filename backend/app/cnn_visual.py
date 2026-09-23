@@ -1,8 +1,8 @@
-"""Phase 8: CNN Visual Classification Subsystem on Satellite Imagery.
+"""Phase 8: Classical Computer Vision (RGB/Histogram) Feature Classifier on Satellite Imagery.
 
-Extracts spatial-color visual features from Sentinel-2 optical imagery chips,
-trains a visual classifier using a strict chronological split (June 2026 train vs Sept 2026 test),
-and computes real metrics (accuracy, precision, recall, confusion matrix).
+Extracts 102-dimensional spatial RGB and color histogram features from Sentinel-2 optical imagery chips,
+trains a classical feature classifier (RandomForest) using a strict chronological split (June 2026 train vs Sept 2026 test),
+and computes empirical evaluation metrics.
 
 Serves auxiliary visual prediction fields (cnn_prediction, cnn_confidence) without overriding
 authoritative rule-based thermal classification.
