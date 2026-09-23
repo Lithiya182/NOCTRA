@@ -23,7 +23,9 @@ CONTRACT_FIELDS = [
 
 
 def _client():
+    from app.config import API_KEY
     with TestClient(app) as client:  # triggers startup ingest
+        client.headers["X-API-Key"] = API_KEY
         return client
 
 

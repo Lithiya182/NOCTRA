@@ -43,7 +43,8 @@ def test_run_active_learning_cycle_and_logging():
 
 def test_dev_retrain_endpoint():
     """Verify POST /api/dev/retrain triggers active learning cycle and returns 200 OK."""
-    res = client.post("/api/dev/retrain")
+    from app.config import API_KEY
+    res = client.post("/api/dev/retrain", headers={"X-API-Key": API_KEY})
     assert res.status_code == 200
     body = res.json()
     assert body["status"] == "OPERATIONAL (POC)"

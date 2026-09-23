@@ -3,15 +3,16 @@ from __future__ import annotations
 import logging
 from datetime import datetime, timezone
 
-from fastapi import APIRouter, HTTPException, status
+from fastapi import APIRouter, Depends, HTTPException, status
 
 from .. import db, ml_model
+from ..auth import verify_api_key
 from ..ingest import ingest, trigger_runtime_detection
 from ..models import IngestOut, RuntimeDetectionIn
 
 logger = logging.getLogger(__name__)
 
-router = APIRouter(prefix="/api/dev", tags=["dev"])
+router = APIRouter(prefix="/api/dev", tags=["dev"], dependencies=[Depends(verify_api_key)])
 
 
 @router.post("/ingest", response_model=IngestOut)

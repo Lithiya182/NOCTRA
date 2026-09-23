@@ -2,6 +2,8 @@ import { useEffect, useMemo, useRef, useState } from "react";
 import { MapContainer, TileLayer, CircleMarker, Polygon, Marker, Popup } from "react-leaflet";
 import axios from "axios";
 
+axios.defaults.headers.common["X-API-Key"] = import.meta.env.VITE_API_KEY || "noctra-dev-key-2026";
+
 const CLASS_COLORS = {
   industrial_fire: "#e63946",
   agricultural_burn: "#f4a261",

@@ -7,7 +7,10 @@ from fastapi.testclient import TestClient
 from app.db import execute, get_conn, query
 from app.main import app
 
+from app.config import API_KEY
+
 client = TestClient(app)
+AUTH_HEADERS = {"X-API-Key": API_KEY}
 
 
 def test_existing_alerts_migration_and_structure():
@@ -51,7 +54,7 @@ def test_transition_confirm_with_note():
         "reviewed_by": reviewer,
     }
 
-    res = client.post(f"/api/alerts/{alert_id}/transition", json=payload)
+    res = client.post(f"/api/alerts/{alert_id}/transition", json=payload, headers=AUTH_HEADERS)
     assert res.status_code == 200
     data = res.json()
 
@@ -95,7 +98,7 @@ def test_transition_dismiss_with_note():
         "analyst_note": note_text,
     }
 
-    res = client.post(f"/api/alerts/{alert_id}/transition", json=payload)
+    res = client.post(f"/api/alerts/{alert_id}/transition", json=payload, headers=AUTH_HEADERS)
     assert res.status_code == 200
     data = res.json()
 

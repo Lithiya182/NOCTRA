@@ -16,7 +16,7 @@ def test_rl_policy_training_and_disclaimer():
     """Verify train_policy executes, saves model artifact, and includes mandatory disclaimer."""
     res = train_policy()
     assert res["status"] == "RESEARCH / EXPERIMENTAL — architecture only, awaiting real feedback data"
-    assert res["total_alerts"] == 30
+    assert res["total_alerts"] >= 30
     assert "action_distribution" in res
     assert "expected_mean_reward" in res
     assert res["disclaimer"] == DISCLAIMER

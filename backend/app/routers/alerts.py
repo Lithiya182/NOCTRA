@@ -1,8 +1,9 @@
 from __future__ import annotations
 
-from fastapi import APIRouter, HTTPException
+from fastapi import APIRouter, Depends, HTTPException
 
 from .. import alert_engine
+from ..auth import verify_api_key
 from ..models import AlertOut, AlertReviewOut, FeedbackIn, TransitionIn
 
 router = APIRouter(prefix="/api/alerts", tags=["alerts"])
@@ -28,7 +29,7 @@ def get_alert_reviews(alert_id: int) -> list[AlertReviewOut]:
     return alert_engine.get_alert_reviews(alert_id)
 
 
-@router.post("/{alert_id}/transition", response_model=dict)
+@router.post("/{alert_id}/transition", response_model=dict, dependencies=[Depends(verify_api_key)])
 def transition(alert_id: int, body: TransitionIn) -> dict:
     try:
         return alert_engine.update_alert_status(
@@ -42,7 +43,7 @@ def transition(alert_id: int, body: TransitionIn) -> dict:
         raise HTTPException(404, str(exc)) from exc
 
 
-@router.post("/{alert_id}/feedback", response_model=dict)
+@router.post("/{alert_id}/feedback", response_model=dict, dependencies=[Depends(verify_api_key)])
 def record_feedback(alert_id: int, body: FeedbackIn) -> dict:
     """Submit human review feedback (thumbs up / thumbs down) for alert classification."""
     try:
@@ -56,7 +57,7 @@ def record_feedback(alert_id: int, body: FeedbackIn) -> dict:
         raise HTTPException(404, str(exc)) from exc
 
 
-@router.post("/{alert_id}/notify", response_model=dict)
+@router.post("/{alert_id}/notify", response_model=dict, dependencies=[Depends(verify_api_key)])
 def notify(alert_id: int) -> dict:
     """Manually re-fire SMS + Web Push for an alert (rehearsal / retry)."""
     rows = alert_engine.get_alerts()
