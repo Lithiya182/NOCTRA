@@ -1,13 +1,14 @@
 """Phase 11: RL-Based Action/Priority Policy (Contextual Bandit Formulation).
 
 EXPLICIT DISCLAIMER:
-"This is a contextual-bandit action-prioritization policy trained offline on
-historical human-review outcomes, not a full reinforcement-learning agent with an
-interactive environment."
+"This is a contextual-bandit action-prioritization architecture initialized against a
+rule-based severity/FRP heuristic proxy. No real human-review data currently exists in
+alert_reviews, so no learning from real human feedback has occurred yet; the model serves
+as a prioritization framework ready to learn from operator feedback as real reviews accumulate."
 
 Context: Site/Alert features [FRP, duty_cycle, d_industrial, confidence, persistence, is_anomalous]
 Action: Alert priority tier ["routine", "watch", "urgent"]
-Reward: Derived from human review outcomes (confirmed -> +1.0 for urgent/watch, dismissed -> +1.0 for routine).
+Reward: Derived from rule-based severity/FRP heuristic proxy pending real human review feedback.
 """
 from __future__ import annotations
 
@@ -27,9 +28,10 @@ MODEL_DIR = Path(__file__).resolve().parent.parent / "models"
 MODEL_PATH = MODEL_DIR / "rl_policy.pkl"
 
 DISCLAIMER = (
-    "This is a contextual-bandit action-prioritization policy trained offline on "
-    "historical human-review outcomes, not a full reinforcement-learning agent with an "
-    "interactive environment."
+    "This is a contextual-bandit action-prioritization architecture initialized against a "
+    "rule-based severity/FRP heuristic proxy. No real human-review data currently exists in "
+    "alert_reviews, so no learning from real human feedback has occurred yet; the model serves "
+    "as a prioritization framework ready to learn from operator feedback as real reviews accumulate."
 )
 
 
@@ -159,7 +161,7 @@ def train_policy() -> Dict[str, Any]:
     mean_reward = round(float(np.mean(rewards_accum)), 4) if rewards_accum else 0.0
 
     return {
-        "status": "OPERATIONAL (POC)",
+        "status": "RESEARCH / EXPERIMENTAL — architecture only, awaiting real feedback data",
         "total_alerts": len(alerts),
         "reviewed_alerts": reviewed_count,
         "unreviewed_alerts": len(alerts) - reviewed_count,

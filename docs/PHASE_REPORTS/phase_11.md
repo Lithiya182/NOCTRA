@@ -1,8 +1,8 @@
 # Phase 11 — RL-Based Action/Priority Policy (Contextual Bandit Formulation)
 
-**Status**: OPERATIONAL (POC)  
+**Status**: RESEARCH / EXPERIMENTAL — architecture only, awaiting real feedback data  
 **Date**: September 23, 2026  
-**Commit**: `2a33bd2` (`[Phase 11] RL contextual bandit action-prioritization policy — 83/83 passed`)
+**Commit**: `[Phase 11] RL contextual bandit action-prioritization policy — honest disclaimer & status update — 83/83 passed`
 
 ---
 
@@ -10,12 +10,12 @@
 
 > [!IMPORTANT]
 > **Mandatory Scoping Disclaimer**:  
-> *"This is a contextual-bandit action-prioritization policy trained offline on historical human-review outcomes, not a full reinforcement-learning agent with an interactive environment."*
+> *"This is a contextual-bandit action-prioritization architecture initialized against a rule-based severity/FRP heuristic proxy. No real human-review data currently exists in alert_reviews, so no learning from real human feedback has occurred yet; the model serves as a prioritization framework ready to learn from operator feedback as real reviews accumulate."*
 
-- **Problem Formulation**: Formulated as an offline contextual bandit:
+- **Problem & Reward Formulation**: Formulated as an offline contextual bandit framework:
   - **Context ($\mathbf{x}$)**: 6-dimensional feature vector per site/alert ($FRP$, $duty\_cycle$, $d_{\text{industrial}}$, $confidence$, $persistence$, $is\_anomalous$).
   - **Actions ($a$)**: Priority tier selection $\in \{\text{"routine"}, \text{"watch"}, \text{"urgent"}\}$.
-  - **Rewards ($R$)**: Derived offline from human review audit events in `alert_reviews` and alert statuses ($R=+1.0$ for confirmed alerts assigned `urgent`/`watch`, $R=+1.0$ for dismissed false alarms assigned `routine`, $R=-1.0$ for false alarms assigned `urgent`).
+  - **Reward Proxy ($R$)**: An empirical database audit confirmed **0 confirmed alerts, 0 dismissed alerts, and 0 rows in `alert_reviews`**. Because zero real human review outcomes currently exist in the database, the policy was initialized against a rule-based severity/FRP heuristic proxy as a stand-in reward signal.
 
 ---
 
@@ -31,9 +31,9 @@
    - **Human-in-the-loop**: Policy outputs function purely as operator recommendations in the dashboard and never auto-execute actions.
 
 3. **Targeted Unit & Regression Tests (`backend/tests/test_phase11_rl_policy.py`)**:
-   - `test_rl_policy_training_and_disclaimer`: Verifies model training, artifact creation, sample counts, and mandatory disclaimer text.
+   - `test_rl_policy_training_and_disclaimer`: Verifies model training, artifact creation, sample counts, and corrected disclaimer text.
    - `test_suggest_priority_and_api_integration`: Verifies contract on `/api/sites` and `/api/alerts`.
-   - `test_rl_policy_reward_derivation`: Verifies reward matrix logic for confirmed vs. dismissed reviews.
+   - `test_rl_policy_reward_derivation`: Verifies reward matrix logic for confirmed vs. dismissed reviews and heuristic fallback.
 
 ---
 
@@ -46,7 +46,7 @@
   - `watch`: **5** (16.7%)
   - `routine`: **15** (50.0%)
 - **Expected Mean Policy Reward**: `0.5833`
-- **Sample Size & Convergence Warning**: Due to $N=30$ total alerts, the policy cannot claim statistical convergence to an optimal policy. It functions strictly as an operational proof-of-concept.
+- **Zero Real Learning Caveat**: Because no real human reviews exist in the database, **no actual learning from human feedback has occurred yet**. The model serves purely as a rule-based prioritization scorer with bandit architecture ready to ingest feedback post-deployment.
 
 ---
 
@@ -91,10 +91,10 @@ backend/tests/test_thermal_behavior.py::test_duty_cycle_and_consecutive_days_for
 ---
 
 ## 5. Honest Capability Status Label
-**OPERATIONAL (POC)**
-- Built an operational LinUCB contextual bandit policy prioritizing alerts based on site context and historical review rewards.
-- Surfaced suggested priorities on `/api/sites` and `/api/alerts` without taking autonomous actions.
-- Status is scoped strictly as **OPERATIONAL (POC)** (not upgraded to VERIFIED) due to sample size constraints ($N=30$).
+**RESEARCH / EXPERIMENTAL — architecture only, awaiting real feedback data**
+- Built an operational LinUCB contextual bandit priority scoring framework wired to `/api/sites` and `/api/alerts`.
+- Confirmed zero human review entries currently exist in `alert_reviews`, so initialized against a severity/FRP heuristic proxy as a stand-in.
+- Status is scoped strictly as **RESEARCH / EXPERIMENTAL — architecture only, awaiting real feedback data** because no learning from real human feedback has occurred yet.
 
 ---
 
