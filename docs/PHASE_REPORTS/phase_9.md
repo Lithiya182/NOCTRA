@@ -2,7 +2,7 @@
 
 **Status**: OPERATIONAL (POC)  
 **Date**: September 23, 2026  
-**Commit**: `[Phase 9] Thermal + Visual evidence fusion with thermal authoritativeness and human-review gating — 77/77 passed`
+**Commit**: `861fbd9` (`[Phase 9] Thermal + Visual evidence fusion with thermal authoritativeness and human-review gating — 77/77 passed`)
 
 ---
 
