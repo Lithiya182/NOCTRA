@@ -57,6 +57,11 @@ Phase 13 addresses key security and operational deployment gaps identified durin
 > **Full Role-Based Access Control (RBAC)** (e.g., granular user account creation, analyst vs. supervisor vs. field operator permissions, and OAuth2/OIDC provider integration) is **explicitly out of scope** for this phase.  
 > Phase 13 focuses on securing endpoints from unauthenticated public state mutations using API key / Bearer token authentication while preserving simple deployment mechanics.
 
+> [!WARNING]
+> **API Key Limitations & Frontend Security Disclaimer**:  
+> The API key mechanism serves strictly as **deployment-level baseline protection** against unauthenticated external requests and automated scripts. It is **NOT a substitute for real per-user authentication** (e.g. Session Cookies, JWTs, OAuth2/OIDC).  
+> Because the API key is embedded in frontend client JavaScript bundles (`VITE_API_KEY`), any client-side key can be extracted by inspecting the browser bundle or network traffic. This mechanism must be accurately represented in Phase 15's PPT Evidence Map as service-tier API key authorization, not end-user identity authentication.
+
 ---
 
 ## 4. Secrets Audit & Git History Scan Results

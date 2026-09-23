@@ -81,7 +81,8 @@ backend/tests/test_thermal_behavior.py::test_duty_cycle_and_consecutive_days_for
 ## 4. Honest Capability Status Label
 **OPERATIONAL (POC)**
 - Built an interpretable evidence fusion module combining thermal and visual predictions.
-- Wired into `/api/sites` and tested end-to-end against all 31 real sites and 130 synthetic demo sites.
+- Wired into `/api/sites` and tested end-to-end against all 31 active imagery sites and 130 non-imagery sites.
+- **Empirical Conflict Rate & Active Site Alignment**: Exactly **31 active sites** in the site registry possess matching Sentinel-2 optical imagery chips. Across these 31 sites, the fusion module evaluates 19 sites ($61.29\%$) as `conflicting` and 12 sites ($38.71\%$) as `corroborating`. The $61.29\%$ conflict rate is a direct, expected consequence of Phase 8's low visual precision ($25\%$), and the fusion engine correctly preserves thermal classification authority without allowing visual false positives to mutate site labels.
 - Status is scoped as **OPERATIONAL (POC)** because visual inputs originate from Phase 8's POC classical CV classifier.
 
 ---

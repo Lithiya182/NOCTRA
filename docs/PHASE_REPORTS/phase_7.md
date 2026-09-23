@@ -39,6 +39,7 @@
 - **Chip File Size Range**: 48,024 bytes (48.0 KB) to 52,908 bytes (52.9 KB) (average ~51.5 KB per JPEG chip)
 - **Source Provider**: AWS Earth Search STAC API (`sentinel-2-l2a`, Copernicus)
 - **Disk Storage Path**: `data/imagery/{site_id}/2026-09-18.jpg`
+- **Active Site Alignment Note**: Initial candidate fetches populated 52 raw chips across pre-clustered candidates. Following spatial re-clustering and Phase 13 registry auditing, stale pre-merging candidate entries were purged, leaving **31 active sites with 31 matching Sentinel-2 optical chips** in `data/imagery/` and the `imagery` database table.
 
 ---
 

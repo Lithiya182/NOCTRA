@@ -59,9 +59,10 @@ In strict adherence to Global Rules (§0) and Phase 12 directives:
 - **Status Qualification**: Retains label **RESEARCH / EXPERIMENTAL**. While non-degenerate under stratified split (unlike the chronological split which resulted in zero test positives), the model suffers from low precision ($25\%$) driven by 6 false positives on negative terrain chips.
 
 ### 3.2 Phase 9: Thermal + Visual Evidence Fusion Analysis
-- **Live Database Audit**:
-  - `Total Available Imagery Chips`: 52
-  - `Total Distinct Sites with Imagery`: 52
+- **Live Database & Disk Imagery Audit**:
+  - `Total Available Imagery Chips in DB`: 31 (post-audit cleanup purging 21 stale pre-merging candidate site chips from Phase 7)
+  - `Total Distinct Sites with Imagery`: 31
+  - `Total Imagery Directories on Disk`: 31 (in `data/imagery/`)
   - `Sites Evaluated for Fused Visual Evidence`: 31 (sites classified as `industrial_fire`, `agricultural_burn`, `wildfire`)
   - `Sites with visual_evidence == 'conflicting'`: 19
   - `Sites with visual_evidence == 'corroborating'`: 12
