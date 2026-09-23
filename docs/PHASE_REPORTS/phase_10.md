@@ -2,7 +2,7 @@
 
 **Status**: OPERATIONAL (POC)  
 **Date**: September 23, 2026  
-**Commit**: `[Phase 10] Human feedback active learning loop — honestly logged retrain metrics — 80/80 passed`
+**Commit**: `897bb82` (`[Phase 10] Human feedback active learning loop — honestly logged retrain metrics — 80/80 passed`)
 
 ---
 
