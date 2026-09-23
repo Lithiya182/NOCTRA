@@ -20,8 +20,10 @@ models/*.pkl
 data/firms_seed.csv
 data/ml_expansion_features.csv
 data/backups/
+data/imagery/
 backend/keys/
 before_classifier.py
 after_classifier.py
 check_osm.py
 inspect_db_temp*.py
+scratch/
