@@ -42,6 +42,7 @@ MIN_TEMPORAL_EVIDENCE_DAYS = 3
 SpatialEvidence = Literal["polygon_containment", "proximity", "none"]
 TemporalEvidence = Literal["persistent", "sufficient", "insufficient"]
 IntensityEvidence = Literal["weak", "moderate", "high-moderate", "high", "very-high"]
+VisualEvidence = Literal["corroborating", "conflicting", "uninformative", "none"]
 EvidenceSufficiency = Literal["sufficient", "insufficient", "conflicting"]
 
 
@@ -53,6 +54,7 @@ class Evidence:
     intensity: IntensityEvidence
     sufficiency: EvidenceSufficiency
     reason: str
+    visual: VisualEvidence = "none"
 
 
 @dataclass
@@ -63,7 +65,7 @@ class ClassResult:
     features: dict
     evidence: Evidence = field(default_factory=lambda: Evidence(
         spatial="none", temporal="insufficient", intensity="weak",
-        sufficiency="insufficient", reason="No evidence evaluated"
+        sufficiency="insufficient", reason="No evidence evaluated", visual="none"
     ))
 
 
@@ -339,3 +341,69 @@ def feature_vector(result_feats: dict) -> list[float]:
         min(d_res if d_res is not None else 20_000, 20_000),
         result_feats.get("duty_cycle_pct", 0.0) or 0.0,
     ]
+
+
+def fuse_evidence(
+    class_result: ClassResult,
+    cnn_prediction: str | None = None,
+    cnn_confidence: float | None = None,
+    has_imagery: bool = False,
+) -> ClassResult:
+    """Fuse rule-based thermal evidence with visual (Phase 8 CV) evidence.
+    
+    Rule-based thermal classification remains authoritative.
+    Visual evidence cautiously adjusts evidence sufficiency and reason:
+    - No imagery or no CNN prediction -> visual="none", thermal-only fallback.
+    - CNN prediction agrees with thermal classification -> visual="corroborating".
+    - CNN prediction disagrees with thermal classification -> visual="conflicting", sufficiency="conflicting", flagged for human review.
+    """
+    orig_ev = class_result.evidence
+
+    if not has_imagery or cnn_prediction is None:
+        fused_ev = Evidence(
+            spatial=orig_ev.spatial,
+            temporal=orig_ev.temporal,
+            intensity=orig_ev.intensity,
+            sufficiency=orig_ev.sufficiency,
+            reason=orig_ev.reason,
+            visual="none",
+        )
+        return ClassResult(
+            classification=class_result.classification,
+            confidence=class_result.confidence,
+            explanation=orig_ev.reason,
+            features=class_result.features,
+            evidence=fused_ev,
+        )
+
+    thermal_class = class_result.classification
+    conf_val = f" (conf: {cnn_confidence:.2f})" if cnn_confidence is not None else ""
+
+    if cnn_prediction == thermal_class:
+        visual_status: VisualEvidence = "corroborating"
+        sufficiency_status: EvidenceSufficiency = orig_ev.sufficiency
+        if thermal_class != "other":
+            fused_reason = f"{orig_ev.reason}; Visual evidence corroborates thermal classification (CNN: {cnn_prediction}{conf_val})."
+        else:
+            fused_reason = f"{orig_ev.reason}; Visual evidence corroborates non-fire classification."
+    else:
+        visual_status = "conflicting"
+        sufficiency_status = "conflicting"
+        fused_reason = f"{orig_ev.reason}; Visual evidence conflicts with thermal classification (CNN: {cnn_prediction}{conf_val} vs Thermal: {thermal_class}) — flagged for human review."
+
+    fused_ev = Evidence(
+        spatial=orig_ev.spatial,
+        temporal=orig_ev.temporal,
+        intensity=orig_ev.intensity,
+        sufficiency=sufficiency_status,
+        reason=fused_reason,
+        visual=visual_status,
+    )
+
+    return ClassResult(
+        classification=class_result.classification,
+        confidence=class_result.confidence,
+        explanation=fused_reason,
+        features=class_result.features,
+        evidence=fused_ev,
+    )

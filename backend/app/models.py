@@ -60,6 +60,8 @@ class SiteRow(BaseModel):
     frp_intensity: Optional[FRPIntensity] = None
     cnn_prediction: Optional[str] = None
     cnn_confidence: Optional[float] = None
+    visual_evidence: Optional[str] = "none"
+    evidence_sufficiency: Optional[str] = None
 
 
 class AlertOut(BaseModel):

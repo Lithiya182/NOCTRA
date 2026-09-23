@@ -266,10 +266,39 @@ def _to_row(r: dict) -> SiteRow:
     r = dict(r)
     r["is_anomalous"] = bool(r["is_anomalous"])
     r["ml_prediction"] = ml_model.predict(r)
-    from .. import cnn_visual
+    from .. import classifier, cnn_visual
     pred, conf = cnn_visual.predict_visual(r["site_id"])
     r["cnn_prediction"] = pred
     r["cnn_confidence"] = conf
+
+    img_rows = db.query("SELECT COUNT(*) as cnt FROM imagery WHERE site_id=? AND status='available'", (r["site_id"],))
+    has_imagery = bool(img_rows and img_rows[0]["cnt"] > 0)
+
+    base_evidence = classifier.Evidence(
+        spatial="polygon_containment" if "industrial polygon" in r["explanation"].lower() or "agri" in r["explanation"].lower() else ("proximity" if "within" in r["explanation"].lower() else "none"),
+        temporal="persistent" if r.get("persistence", 0) >= 3 else ("sufficient" if "sufficient" in r["explanation"].lower() else "insufficient"),
+        intensity=classifier._frp_intensity(r.get("max_frp", 0.0)),
+        sufficiency="sufficient" if r["classification"] != "other" else "insufficient",
+        reason=r["explanation"],
+        visual="none",
+    )
+    base_result = classifier.ClassResult(
+        classification=r["classification"],
+        confidence=r.get("confidence", 0.5),
+        explanation=r["explanation"],
+        features={},
+        evidence=base_evidence,
+    )
+    fused_result = classifier.fuse_evidence(
+        base_result,
+        cnn_prediction=pred,
+        cnn_confidence=conf,
+        has_imagery=has_imagery,
+    )
+    r["explanation"] = fused_result.explanation
+    r["visual_evidence"] = fused_result.evidence.visual
+    r["evidence_sufficiency"] = fused_result.evidence.sufficiency
+
     return SiteRow(**r)
 
 
