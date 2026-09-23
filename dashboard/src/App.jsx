@@ -282,6 +282,17 @@ export default function App() {
                   <div className="alertbody">
                     <div>{a.site ? `${a.site.lat.toFixed(4)}, ${a.site.lon.toFixed(4)}` : ""}</div>
                     <div className="small">{a.site?.explanation}</div>
+                    {a.suggested_priority && (
+                      <div className="prio-row small">
+                        🎯 RL Priority: <b className={`prio-badge prio-${a.suggested_priority}`}>{a.suggested_priority.toUpperCase()}</b>
+                        {a.suggested_priority_confidence != null ? ` (${(a.suggested_priority_confidence * 100).toFixed(0)}%)` : ""}
+                      </div>
+                    )}
+                    {a.site?.visual_evidence && a.site.visual_evidence !== "none" && (
+                      <div className={`evidence-badge evidence-${a.site.visual_evidence}`}>
+                        {a.site.visual_evidence === "conflicting" ? "⚡ Visual Evidence: CONFLICTING" : "✓ Visual Evidence: CORROBORATING"}
+                      </div>
+                    )}
                     <div className="small">CAP msgType: {a.cap?.info?.[0]?.severity ?? "—"} / {a.cap?.info?.[0]?.urgency ?? "—"}</div>
                     {a.analyst_note && (
                       <div className="analyst-note">📝 {a.analyst_note} <span className="small">({a.reviewed_by || "analyst"})</span></div>
@@ -374,6 +385,13 @@ export default function App() {
                   {s.explanation}<br/>
                   Last pass: {s.last_pass_date} ({s.days_since_last_pass} days ago)<br/>
                   Next expected pass: {s.next_expected_pass_date || '—'}<br/>
+                  <hr style={{margin: '6px 0', borderColor: '#334155'}}/>
+                  <div style={{fontSize: '12px', fontWeight: '600', marginBottom: '4px'}}>Evidence & AI Analysis</div>
+                  <div style={{fontSize: '11px', lineHeight: '1.6'}}>
+                    <div>CNN Prediction: <b>{s.cnn_prediction ? `${s.cnn_prediction} (${(s.cnn_confidence * 100).toFixed(0)}%)` : '—'}</b></div>
+                    <div>Visual Evidence: <b style={{color: s.visual_evidence === 'conflicting' ? '#f87171' : s.visual_evidence === 'corroborating' ? '#4ade80' : 'inherit'}}>{(s.visual_evidence || 'none').toUpperCase()}</b></div>
+                    <div>RL Suggested Priority: <b>{(s.suggested_priority || 'routine').toUpperCase()}</b> ({s.suggested_priority_confidence != null ? (s.suggested_priority_confidence * 100).toFixed(0) + '%' : '—'})</div>
+                  </div>
                   <hr style={{margin: '6px 0', borderColor: '#334155'}}/>
                   <div style={{fontSize: '12px', fontWeight: '600', marginBottom: '4px'}}>Location</div>
                   <div style={{fontSize: '11px', lineHeight: '1.6'}}>

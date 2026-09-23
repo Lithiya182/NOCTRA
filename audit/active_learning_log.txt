@@ -416,3 +416,47 @@ Diagnostic Analysis:
   (b) Lack of correction diversity: 17/19 (89.5%) of conflict corrections are near-duplicate decision-boundary artifacts (confidence ≈0.5391) rather than independent error cases.
 ======================================================================
 
+======================================================================
+ACTIVE LEARNING RETRAIN EVENT — 2026-09-23T15:15:54.541225+00:00
+======================================================================
+Human Reviews Ingested: 0 review events, 0 alert feedback rows
+Correction Diversity Breakdown:
+  - Total Conflicts Evaluated: 19
+  - Near-Duplicate Cases (conf ≈0.5391): 17 (89.5%)
+  - Distinct Disagreements: 2 (10.5%)
+----------------------------------------------------------------------
+Held-Out Retraining Metrics:
+  - Accuracy:  Before=0.4000  | After=0.4000  | Delta=+0.0000
+  - Precision: Before=0.2500 | After=0.2500 | Delta=+0.0000
+  - Recall:    Before=1.0000  | After=1.0000  | Delta=+0.0000
+  - F1-Score:  Before=0.4000  | After=0.4000  | Delta=+0.0000
+  - Confusion Matrix (After): [[2, 6], [0, 2]]
+----------------------------------------------------------------------
+Diagnostic Analysis:
+  Retraining metric delta is neutral/negligible. Primary factors:
+  (a) Genuine sample scarcity in held-out test set (N_test_pos=2).
+  (b) Lack of correction diversity: 17/19 (89.5%) of conflict corrections are near-duplicate decision-boundary artifacts (confidence ≈0.5391) rather than independent error cases.
+======================================================================
+
+======================================================================
+ACTIVE LEARNING RETRAIN EVENT — 2026-09-23T15:15:58.432928+00:00
+======================================================================
+Human Reviews Ingested: 0 review events, 0 alert feedback rows
+Correction Diversity Breakdown:
+  - Total Conflicts Evaluated: 19
+  - Near-Duplicate Cases (conf ≈0.5391): 17 (89.5%)
+  - Distinct Disagreements: 2 (10.5%)
+----------------------------------------------------------------------
+Held-Out Retraining Metrics:
+  - Accuracy:  Before=0.4000  | After=0.4000  | Delta=+0.0000
+  - Precision: Before=0.2500 | After=0.2500 | Delta=+0.0000
+  - Recall:    Before=1.0000  | After=1.0000  | Delta=+0.0000
+  - F1-Score:  Before=0.4000  | After=0.4000  | Delta=+0.0000
+  - Confusion Matrix (After): [[2, 6], [0, 2]]
+----------------------------------------------------------------------
+Diagnostic Analysis:
+  Retraining metric delta is neutral/negligible. Primary factors:
+  (a) Genuine sample scarcity in held-out test set (N_test_pos=2).
+  (b) Lack of correction diversity: 17/19 (89.5%) of conflict corrections are near-duplicate decision-boundary artifacts (confidence ≈0.5391) rather than independent error cases.
+======================================================================
+

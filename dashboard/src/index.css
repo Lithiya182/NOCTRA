@@ -72,3 +72,13 @@ code { font-size: 10px; white-space: pre-wrap; display: block; max-height: 120px
 .needcard { background: var(--panel-2); border-radius: 8px; padding: 8px 10px; margin-bottom: 8px; font-size: 13px; }
 
 .toast { position: fixed; top: 56px; right: 16px; z-index: 2000; background: #064e3b; color: #ecfdf5; padding: 10px 14px; border-radius: 8px; max-width: 420px; font-size: 13px; box-shadow: 0 6px 20px rgba(0,0,0,.4); cursor: pointer; }
+
+.prio-row { margin-top: 4px; display: flex; align-items: center; gap: 4px; }
+.prio-badge { padding: 1px 5px; border-radius: 3px; font-weight: 700; font-size: 10px; color: #fff; text-transform: uppercase; }
+.prio-urgent { background: #e63946; }
+.prio-watch { background: #f4a261; color: #111; }
+.prio-routine { background: #334155; }
+
+.evidence-badge { margin-top: 4px; padding: 3px 6px; border-radius: 4px; font-weight: 600; font-size: 11px; display: inline-block; }
+.evidence-conflicting { background: rgba(239, 68, 68, 0.15); color: #f87171; border: 1px solid rgba(239, 68, 68, 0.4); }
+.evidence-corroborating { background: rgba(34, 197, 94, 0.15); color: #4ade80; border: 1px solid rgba(34, 197, 94, 0.4); }
