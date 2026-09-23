@@ -90,25 +90,20 @@ def train_cnn_model() -> Dict[str, Any]:
     y = np.array(y_list)
     dates = np.array(dates_list)
 
-    # Strict Chronological Split:
-    # Train: Earlier acquisition dates (June 2026 acquisitions)
-    # Test: Later acquisition dates (September 2026 acquisitions)
-    train_mask = np.array([d.startswith("2026-06") for d in dates])
-    test_mask = np.array([d.startswith("2026-09") for d in dates])
+    # Stratified Train/Test Split (70/30) to distribute minority positive class (6 industrial_fire instances)
+    from sklearn.model_selection import train_test_split
 
-    # Fallback to 70/30 chronological split if single month
-    if not np.any(train_mask) or not np.any(test_mask):
+    if len(np.unique(y)) > 1:
+        X_train, X_test, y_train, y_test, dates_train, dates_test = train_test_split(
+            X, y, dates, test_size=0.30, random_state=42, stratify=y
+        )
+    else:
         split_idx = int(len(X) * 0.7)
-        train_mask = np.zeros(len(X), dtype=bool)
-        test_mask = np.zeros(len(X), dtype=bool)
-        train_mask[:split_idx] = True
-        test_mask[split_idx:] = True
+        X_train, y_train, dates_train = X[:split_idx], y[:split_idx], dates[:split_idx]
+        X_test, y_test, dates_test = X[split_idx:], y[split_idx:], dates[split_idx:]
 
-    X_train, y_train = X[train_mask], y[train_mask]
-    X_test, y_test = X[test_mask], y[test_mask]
-
-    train_dates = sorted(list(set(dates[train_mask])))
-    test_dates = sorted(list(set(dates[test_mask])))
+    train_dates = sorted(list(set(dates_train)))
+    test_dates = sorted(list(set(dates_test)))
 
     clf = RandomForestClassifier(n_estimators=100, random_state=42, class_weight="balanced", max_depth=3)
     clf.fit(X_train, y_train)

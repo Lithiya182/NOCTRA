@@ -24,8 +24,8 @@ def test_cnn_feature_extraction(tmp_path):
     assert feats.dtype == "float32" or feats.dtype == "float64"
 
 
-def test_cnn_training_chronological_split():
-    """Verify train_cnn_model executes chronological split and produces valid metrics."""
+def test_cnn_training_stratified_split():
+    """Verify train_cnn_model executes stratified split and produces valid metrics."""
     res = train_cnn_model()
     assert "status" in res
     assert res["status"] in ("OPERATIONAL (POC)", "RESEARCH / EXPERIMENTAL")
