@@ -50,3 +50,17 @@ def push_runtime_detection(body: RuntimeDetectionIn) -> dict:
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
             detail=f"Failed to push runtime detection: {e}",
         ) from e
+
+
+@router.post("/retrain")
+def trigger_retrain() -> dict:
+    """Trigger active learning retraining cycle using human feedback and review audit table."""
+    try:
+        from .. import active_learning
+        return active_learning.run_active_learning_cycle()
+    except Exception as e:
+        logger.error("Error running active learning retrain: %s", e, exc_info=True)
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail=f"Active learning retrain failed: {e}",
+        ) from e
