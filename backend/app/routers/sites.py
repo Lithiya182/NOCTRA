@@ -266,6 +266,10 @@ def _to_row(r: dict) -> SiteRow:
     r = dict(r)
     r["is_anomalous"] = bool(r["is_anomalous"])
     r["ml_prediction"] = ml_model.predict(r)
+    from .. import cnn_visual
+    pred, conf = cnn_visual.predict_visual(r["site_id"])
+    r["cnn_prediction"] = pred
+    r["cnn_confidence"] = conf
     return SiteRow(**r)
 
 

@@ -44,4 +44,6 @@ EXPANSION_RADIUS_M = 4000
 SEV = {"minor": (0, 15), "moderate": (15, 40), "severe": (40, 100), "extreme": (100, 1e9)}
 
 VAPID_KEYS_FILE = ROOT / "backend" / "keys" / "vapid.json"
-ML_MODEL_FILE = ROOT / "backend" / "models" / "clf.pkl"
+MODELS_DIR = ROOT / "backend" / "models"
+ML_MODEL_FILE = MODELS_DIR / "clf.pkl"
+CNN_MODEL_FILE = MODELS_DIR / "cnn_visual.pkl"

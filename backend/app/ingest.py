@@ -60,7 +60,7 @@ def _ingest_rows(
 
     # --- detections table with provenance ---
     row_sql = (
-        "INSERT INTO detections (latitude, longitude, bright_ti4, scan, track, "
+        "INSERT OR IGNORE INTO detections (latitude, longitude, bright_ti4, scan, track, "
         "acq_date, acq_time, satellite, instrument, confidence, version, bright_ti5, "
         "frp, daynight, is_synthetic, source, ingestion_batch) "
         "VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)"
@@ -116,6 +116,10 @@ def _ingest_rows(
             s["max_frp"] = max(s["max_frp"], r.get("frp", 0))
             s["brightness"] = max(s["brightness"], r.get("bright_ti4", 0))
             s["det_ids"].append(r["id"])
+
+    # Clear derived site tables before inserting newly clustered sites
+    db.execute("DELETE FROM site_detections")
+    db.execute("DELETE FROM sites")
 
     site_rows = [(
         s["site_id"], s["lat"], s["lon"], s["first_seen"], s["last_seen"],

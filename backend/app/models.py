@@ -58,6 +58,8 @@ class SiteRow(BaseModel):
     days_span: Optional[int] = None
     expansion_magnitude: Optional[float] = None
     frp_intensity: Optional[FRPIntensity] = None
+    cnn_prediction: Optional[str] = None
+    cnn_confidence: Optional[float] = None
 
 
 class AlertOut(BaseModel):
