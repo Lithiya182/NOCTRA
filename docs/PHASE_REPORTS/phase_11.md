@@ -2,7 +2,7 @@
 
 **Status**: OPERATIONAL (POC)  
 **Date**: September 23, 2026  
-**Commit**: `[Phase 11] RL contextual bandit action-prioritization policy — 83/83 passed`
+**Commit**: `2a33bd2` (`[Phase 11] RL contextual bandit action-prioritization policy — 83/83 passed`)
 
 ---
 
