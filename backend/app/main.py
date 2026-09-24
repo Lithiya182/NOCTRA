@@ -5,8 +5,11 @@ import logging
 import os
 from contextlib import asynccontextmanager
 
+from pathlib import Path
+
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
+from fastapi.staticfiles import StaticFiles
 
 from . import ml_model, db
 from .config import CORS_ORIGINS, FIRMS_REAL_CSV
@@ -94,6 +97,10 @@ app.add_middleware(
 
 for r in (health, sites, alerts, polygons, needs, push, dev):
     app.include_router(r.router)
+
+imagery_dir = Path("data/imagery")
+if imagery_dir.exists():
+    app.mount("/data/imagery", StaticFiles(directory=imagery_dir), name="imagery")
 
 
 @app.get("/")

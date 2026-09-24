@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useRef, useState } from "react";
-import { MapContainer, TileLayer, CircleMarker, Polygon, Marker, Popup } from "react-leaflet";
+import { MapContainer, TileLayer, CircleMarker, Polygon, Marker, Popup, useMap } from "react-leaflet";
 import axios from "axios";
 
 axios.defaults.headers.common["X-API-Key"] = import.meta.env.VITE_API_KEY || "noctra-dev-key-2026";
@@ -44,6 +44,19 @@ function urlBase64ToUint8Array(base64) {
   return Uint8Array.from([...raw].map((c) => c.charCodeAt(0)));
 }
 
+function MapViewController({ targetLocation }) {
+  const map = useMap();
+  useEffect(() => {
+    window.__tgMap = map;
+  }, [map]);
+  useEffect(() => {
+    if (targetLocation && targetLocation.center) {
+      map.flyTo(targetLocation.center, targetLocation.zoom || 13, { duration: 1.2 });
+    }
+  }, [targetLocation, map]);
+  return null;
+}
+
 function SatelliteImageryPanel({ siteId }) {
   const [imagery, setImagery] = useState([]);
   const [loading, setLoading] = useState(true);
@@ -82,22 +95,25 @@ function SatelliteImageryPanel({ siteId }) {
     <div className="imagery-panel">
       <div className="imagery-title">🛰️ Satellite Snapshots ({imagery.length})</div>
       <div className="imagery-grid">
-        {imagery.map((img) => (
-          <div key={img.id} className="imagery-card">
-            {img.file_path ? (
-              <img src={img.file_path} alt={`Sentinel-2 ${img.acquired_date}`} className="imagery-thumb" />
-            ) : (
-              <div className="imagery-no-thumb">No Image</div>
-            )}
-            <div className="imagery-meta">
-              <div>Date: <b>{img.acquired_date || "—"}</b></div>
-              <div>Cloud: <b>{img.cloud_cover_pct != null ? `${img.cloud_cover_pct.toFixed(1)}%` : "—"}</b></div>
-              <span className="prov-badge" style={{ background: img.is_synthetic ? "#6c757d" : "#198754" }}>
-                {img.is_synthetic ? "Synthetic" : "Copernicus"}
-              </span>
+        {imagery.map((img) => {
+          const imgUrl = img.file_path ? (img.file_path.startsWith("/") ? img.file_path : `/${img.file_path}`) : null;
+          return (
+            <div key={img.id} className="imagery-card">
+              {imgUrl ? (
+                <img src={imgUrl} alt={`Sentinel-2 ${img.acquired_date}`} className="imagery-thumb" />
+              ) : (
+                <div className="imagery-no-thumb">No Image</div>
+              )}
+              <div className="imagery-meta">
+                <div>Date: <b>{img.acquired_date || "—"}</b></div>
+                <div>Cloud: <b>{img.cloud_cover_pct != null ? `${img.cloud_cover_pct.toFixed(1)}%` : "—"}</b></div>
+                <span className="prov-badge" style={{ background: img.is_synthetic ? "#6c757d" : "#198754" }}>
+                  {img.is_synthetic ? "Synthetic" : "Copernicus"}
+                </span>
+              </div>
             </div>
-          </div>
-        ))}
+          );
+        })}
       </div>
     </div>
   );
@@ -114,6 +130,13 @@ export default function App() {
   const [toast, setToast] = useState(null);
   const [pushStatus, setPushStatus] = useState("off");
   const errorShown = useRef({});
+
+  const [targetLocation, setTargetLocation] = useState(null);
+  const [selectedSiteId, setSelectedSiteId] = useState(null);
+  const markerRefs = useRef({});
+  useEffect(() => {
+    window.__tgMarkerRefs = markerRefs.current;
+  });
 
   const api = (url) => axios.get(url, { timeout: 5000 }).catch((e) => {
     if (!errorShown.current[url]) {
@@ -182,6 +205,22 @@ export default function App() {
     if (mode === "demo") return site.is_synthetic === true;
     return true;
   }
+
+  const handleAlertClick = (alert) => {
+    if (alert.site && alert.site.lat != null && alert.site.lon != null) {
+      setTargetLocation({ center: [alert.site.lat, alert.site.lon], zoom: 13, id: Date.now() });
+      setSelectedSiteId(alert.site.site_id);
+      if (markerRefs.current[alert.site.site_id]) {
+        markerRefs.current[alert.site.site_id].openPopup();
+      }
+    }
+  };
+
+  useEffect(() => {
+    if (selectedSiteId && markerRefs.current[selectedSiteId]) {
+      markerRefs.current[selectedSiteId].openPopup();
+    }
+  }, [selectedSiteId, visibleSites]);
 
   const transition = async (alert, action) => {
     try {
@@ -265,10 +304,10 @@ export default function App() {
 
           <section>
             <h3>Government alert console</h3>
-            <p className="hint">Severe/extreme detections appear here automatically within ~2s.</p>
+            <p className="hint">Severe/extreme detections appear here automatically within ~2s. Click any card to locate on map.</p>
             <div className="alert-list">
               {visibleAlerts.slice(0, 30).map((a) => (
-                <div key={a.id} className={`alertcard ${a.status} ${a.severity}`}>
+                <div key={a.id} className={`alertcard ${a.status} ${a.severity}`} onClick={() => handleAlertClick(a)} style={{ cursor: "pointer" }}>
                   <div className="alerthead">
                     <b>#{a.id}</b>
                     <span className={`sev sev-${a.severity}`}>{a.severity.toUpperCase()}</span>
@@ -298,7 +337,7 @@ export default function App() {
                       <div className="analyst-note">📝 {a.analyst_note} <span className="small">({a.reviewed_by || "analyst"})</span></div>
                     )}
                   </div>
-                  <div className="feedback-row">
+                  <div className="feedback-row" onClick={(e) => e.stopPropagation()}>
                     <span className="small">Human review:</span>
                     {a.feedback_label ? (
                       <span className={`feedback-badge ${a.feedback_label}`}>
@@ -306,8 +345,8 @@ export default function App() {
                       </span>
                     ) : (
                       <div className="feedback-btns">
-                        <button className="feedback-btn" title="Confirm classification is correct" onClick={() => submitFeedback(a, "correct")}>👍 Correct</button>
-                        <button className="feedback-btn" title="Flag misclassification" onClick={() => submitFeedback(a, "incorrect")}>👎 Incorrect</button>
+                        <button className="feedback-btn" title="Confirm classification is correct" onClick={(e) => { e.stopPropagation(); submitFeedback(a, "correct"); }}>👍 Correct</button>
+                        <button className="feedback-btn" title="Flag misclassification" onClick={(e) => { e.stopPropagation(); submitFeedback(a, "incorrect"); }}>👎 Incorrect</button>
                       </div>
                     )}
                   </div>
@@ -318,11 +357,12 @@ export default function App() {
                         type="text"
                         placeholder="Add analyst note (optional)..."
                         value={notes[a.id] || ""}
+                        onClick={(e) => e.stopPropagation()}
                         onChange={(e) => setNotes({ ...notes, [a.id]: e.target.value })}
                       />
-                      <div className="actions">
-                        <button className="confirm" onClick={() => transition(a, "confirm")}>Confirm → SMS + Web Push</button>
-                        <button className="dismiss" onClick={() => transition(a, "dismiss")}>Dismiss</button>
+                      <div className="actions" onClick={(e) => e.stopPropagation()}>
+                        <button className="confirm" onClick={(e) => { e.stopPropagation(); transition(a, "confirm"); }}>Confirm → SMS + Web Push</button>
+                        <button className="dismiss" onClick={(e) => { e.stopPropagation(); transition(a, "dismiss"); }}>Dismiss</button>
                       </div>
                     </>
                   )}
@@ -351,6 +391,7 @@ export default function App() {
 
         <main className="maparea">
           <MapContainer center={[23.76, 86.42]} zoom={5} scrollWheelZoom style={{ height: "100%", width: "100%" }}>
+            <MapViewController targetLocation={targetLocation} />
             <TileLayer url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png"
               attribution='&copy; OpenStreetMap contributors' />
             {polygons.map((p, i) => (
@@ -362,7 +403,7 @@ export default function App() {
               </Polygon>
             ))}
             {visibleSites.map((s) => (
-              <CircleMarker key={s.site_id} center={[s.lat, s.lon]}
+              <CircleMarker key={s.site_id} ref={(el) => { if (el) markerRefs.current[s.site_id] = el; }} center={[s.lat, s.lon]}
                 radius={Math.min(10, 4 + (s.is_anomalous ? 4 : 0))}
                 pathOptions={{
                   color: CLASS_COLORS[s.classification],
