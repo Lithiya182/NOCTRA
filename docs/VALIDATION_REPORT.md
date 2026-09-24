@@ -35,9 +35,9 @@ In strict adherence to Global Rules (§0) and Phase 12 directives:
 | **Phase 10** | Active Learning Retraining Loop | `RESEARCH / EXPERIMENTAL` | `$env:PYTHONPATH="backend"; .venv\Scripts\python.exe -m pytest backend/tests/test_phase10_active_learning.py -v`; `audit/active_learning_log.txt` Audit | 3/3 tests passed. 19 conflicts evaluated, $17/19$ ($89.5\%$) near-duplicate boundary artifacts ($\text{conf}\approx 0.5391$). Retrain metric delta $= +0.0000$. |
 | **Phase 11** | RL Contextual Bandit Policy | `RESEARCH / EXPERIMENTAL` | `$env:PYTHONPATH="backend"; .venv\Scripts\python.exe -m pytest backend/tests/test_phase11_rl_policy.py -v`; Live DB Query | 3/3 tests passed. LinUCB bandit priority recommendation policy trained on severity/FRP heuristic proxy. `COUNT(*)=0` human reviews in DB. |
 | **Phase 12** | Independent Validation Pass | `OPERATIONAL — VERIFIED` | Full pytest suite (83 passed), targeted suite (18 passed), audit script suite re-run in this session. | Re-verified all live DB counts, model metrics, and capability status labels with zero unverified claims. |
-| **Phase 13** | Security & Deployment Pass | `NOT IMPLEMENTED` | N/A (Scheduled for Phase 13) | Endpoint authentication, rate limiting, and Compose stack pending implementation. |
-| **Phase 14** | Demo Hardening | `NOT IMPLEMENTED` | N/A (Scheduled for Phase 14) | UI click-through smoke tests and error boundary hardening pending implementation. |
-| **Phase 15** | Final Documentation & PPT Alignment | `NOT IMPLEMENTED` | N/A (Scheduled for Phase 15) | Project master report regeneration and PPT evidence map pending creation. |
+| **Phase 13** | Security & Deployment Pass | `OPERATIONAL (POC)` | `$env:PYTHONPATH="backend"; .venv\Scripts\python.exe -m pytest backend/tests/test_phase13_security.py -v`; live `POST /api/alerts/1/transition` without key | 3/3 Phase 13 tests passed. Unauthenticated transition → HTTP 401. SOS rate limit 5/60s/IP → 429. Not full RBAC. Commits `87924e4`, `d7f7015`. |
+| **Phase 14** | Demo Hardening | `OPERATIONAL (POC)` | Full suite **90/90** (`pytest backend/tests -v`); Playwright browser verification of imagery + 3 alert click-to-locate (Phase 14 follow-up) | First pass `3a0f517` (86/86). Manual testing found imagery static + click-to-locate gaps; fixed and browser-verified in `38ab7cc` (90/90). Evidence: `docs/PHASE_REPORTS/phase_14.md` §4. |
+| **Phase 15** | Final Documentation & PPT Alignment | `OPERATIONAL — VERIFIED` | File existence + re-derived metrics in A-to-Z report; full suite 90/90 this session | `docs/NOCTRA_A_TO_Z_PROJECT_REPORT.md` (sections 1–25), `docs/PPT_EVIDENCE_MAP.md`, `docs/PHASE_CHANGELOG.md`, `docs/PHASE_REPORTS/phase_15.md` written from live counts. |
 
 ---
 
@@ -131,6 +131,6 @@ $env:PYTHONPATH="backend"; .venv\Scripts\python.exe audit/check_label_changes.py
 
 ## 6. Conclusion & Gate Check
 
-Phase 12 (Independent Validation Pass) is complete. All 83 test suite assertions pass, all derived figures match live system state without data inflation, and `docs/VALIDATION_REPORT.md` is fully updated.
+Phase 12 (Independent Validation Pass) completed at commit `851f73c` with 83/83 tests. **Post-gate updates (same document, marked for Phase 15):** Phases 13–15 are no longer `NOT IMPLEMENTED` — see matrix rows above. Latest full suite in the Phase 15 session: **90 passed**.
 
-The system state is clean, verified, and ready for **Phase 13 (Security & Deployment Pass)**.
+The system state remains documented without metric inflation; ready for SIH submission documentation use (`docs/NOCTRA_A_TO_Z_PROJECT_REPORT.md`, `docs/PPT_EVIDENCE_MAP.md`).
