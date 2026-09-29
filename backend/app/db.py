@@ -226,18 +226,6 @@ def reset_derived_tables() -> None:
         conn.commit()
 
 
-def reset_derived_tables() -> None:
-    """Clear only derived tables (sites, site_detections, alerts, needs).
-    Preserves all detections (real + synthetic) and polygons/push_subscriptions.
-    """
-    conn = get_conn()
-    with _lock:
-        conn.execute("DELETE FROM site_detections")
-        conn.execute("DELETE FROM sites")
-        conn.execute("DELETE FROM alerts")
-        conn.execute("DELETE FROM needs")
-        conn.commit()
-
 
 def query(sql: str, params: tuple = ()) -> list[sqlite3.Row]:
     conn = get_conn()
