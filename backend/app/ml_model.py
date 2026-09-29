@@ -43,8 +43,17 @@ def train() -> dict:
     _model = RandomForestClassifier(n_estimators=100, max_depth=8, random_state=42)
     _model.fit(X, y)
     ML_MODEL_FILE.parent.mkdir(parents=True, exist_ok=True)
-    with open(ML_MODEL_FILE, "wb") as f:
-        pickle.dump(_model, f)
+    import time
+    data = pickle.dumps(_model)
+    for attempt in range(5):
+        try:
+            with open(ML_MODEL_FILE, "wb") as f:
+                f.write(data)
+            break
+        except OSError:
+            if attempt == 4:
+                raise
+            time.sleep(0.1)
     return {
         "trained": True,
         "n": len(sites),

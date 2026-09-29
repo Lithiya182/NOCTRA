@@ -1,5 +1,10 @@
+from pathlib import Path
 import sqlite3
-conn = sqlite3.connect('data/thermalguard.db')
+
+ROOT = Path(__file__).resolve().parent.parent
+DB_PATH = ROOT / "data" / "thermalguard.db"
+
+conn = sqlite3.connect(str(DB_PATH))
 conn.row_factory = sqlite3.Row
 c = conn.cursor()
 

@@ -7,10 +7,12 @@ from fastapi.testclient import TestClient
 from app.db import execute, get_conn, query
 from app.main import app
 
+from app.auth import create_reviewer
 from app.config import API_KEY
 
 client = TestClient(app)
-AUTH_HEADERS = {"X-API-Key": API_KEY}
+TEST_REVIEWER_TOKEN = "noctra-rev-reviewer-test-alpha"
+AUTH_HEADERS = {"Authorization": f"Bearer {TEST_REVIEWER_TOKEN}"}
 
 
 def test_existing_alerts_migration_and_structure():
@@ -104,7 +106,7 @@ def test_transition_dismiss_with_note():
 
     assert data["alert"]["status"] == "dismissed"
     assert data["alert"]["analyst_note"] == note_text
-    assert data["alert"]["reviewed_by"] == "analyst"
+    assert data["alert"]["reviewed_by"] == "operator_alpha"
 
     # Verify audit endpoint
     reviews_res = client.get(f"/api/alerts/{alert_id}/reviews")
@@ -119,6 +121,7 @@ def test_transition_dismiss_with_note():
 @pytest.fixture(autouse=True)
 def cleanup_test_data():
     """Ensure test sites and alerts are cleaned up before and after each test."""
+    create_reviewer("operator_alpha", "reviewer", TEST_REVIEWER_TOKEN)
     _do_cleanup()
     yield
     _do_cleanup()

@@ -4,7 +4,8 @@ from __future__ import annotations
 import sys
 from pathlib import Path
 
-sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
+ROOT = Path(__file__).resolve().parent.parent
+sys.path.insert(0, str(ROOT / "backend"))
 
 from app.ingest import ingest
 from app import db, ml_model
@@ -13,7 +14,7 @@ summary = ingest(reset=True)
 print("INGEST:", summary)
 
 n_det = db.query("SELECT COUNT(*) c FROM detections")[0]["c"]
-n_csv = sum(1 for _ in open("data/firms_seed.csv", encoding="utf-8")) - 1
+n_csv = sum(1 for _ in open(ROOT / "data/firms_seed.csv", encoding="utf-8")) - 1
 print(f"detections rows: db={n_det} csv={n_csv} match={n_det == n_csv}")
 
 from collections import Counter

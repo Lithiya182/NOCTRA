@@ -155,8 +155,17 @@ def train_policy() -> Dict[str, Any]:
 
     # Save model artifact
     MODEL_DIR.mkdir(parents=True, exist_ok=True)
-    with open(MODEL_PATH, "wb") as f:
-        pickle.dump(policy, f)
+    import time
+    data = pickle.dumps(policy)
+    for attempt in range(5):
+        try:
+            with open(MODEL_PATH, "wb") as f:
+                f.write(data)
+            break
+        except OSError:
+            if attempt == 4:
+                raise
+            time.sleep(0.1)
 
     mean_reward = round(float(np.mean(rewards_accum)), 4) if rewards_accum else 0.0
 

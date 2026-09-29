@@ -34,20 +34,20 @@ if (-not (Test-Path "data\firms_seed.csv")) {
 # 1. Backend
 Write-Host "Launching backend (port 8000)..."
 Start-Process powershell -ArgumentList "-NoExit", "-Command",
-    "cd C:\Users\Asus\thermalguard; .venv\Scripts\python.exe -m uvicorn backend.app.main:app --host 127.0.0.1 --port 8000" `
-    -WindowStyle Normal -WorkingDirectory "C:\Users\Asus\thermalguard"
+    "cd `"$PSScriptRoot`"; .venv\Scripts\python.exe -m uvicorn backend.app.main:app --host 127.0.0.1 --port 8000" `
+    -WindowStyle Normal -WorkingDirectory $PSScriptRoot
 
 # 2. Dashboard
 Write-Host "Launching dashboard (port 5173)..."
 Start-Process powershell -ArgumentList "-NoExit", "-Command",
-    "cd C:\Users\Asus\thermalguard\dashboard; npx vite --port 5173 --host 127.0.0.1" `
-    -WindowStyle Normal -WorkingDirectory "C:\Users\Asus\thermalguard\dashboard"
+    "cd `"$PSScriptRoot\dashboard`"; npx vite --port 5173 --host 127.0.0.1" `
+    -WindowStyle Normal -WorkingDirectory "$PSScriptRoot\dashboard"
 
 # 3. Public App
 Write-Host "Launching public app (port 5174)..."
 Start-Process powershell -ArgumentList "-NoExit", "-Command",
-    "cd C:\Users\Asus\thermalguard\public-app; npx vite --port 5174 --host 127.0.0.1" `
-    -WindowStyle Normal -WorkingDirectory "C:\Users\Asus\thermalguard\public-app"
+    "cd `"$PSScriptRoot\public-app`"; npx vite --port 5174 --host 127.0.0.1" `
+    -WindowStyle Normal -WorkingDirectory "$PSScriptRoot\public-app"
 
 Write-Host ""
 Write-Host "== Services Started =="

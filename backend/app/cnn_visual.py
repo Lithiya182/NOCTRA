@@ -110,8 +110,17 @@ def train_cnn_model() -> Dict[str, Any]:
 
     # Save model artifact
     MODELS_DIR.mkdir(parents=True, exist_ok=True)
-    with open(MODEL_PATH, "wb") as f:
-        pickle.dump(clf, f)
+    import time
+    data = pickle.dumps(clf)
+    for attempt in range(5):
+        try:
+            with open(MODEL_PATH, "wb") as f:
+                f.write(data)
+            break
+        except OSError:
+            if attempt == 4:
+                raise
+            time.sleep(0.1)
 
     y_pred = clf.predict(X_test)
     y_prob = clf.predict_proba(X_test)[:, 1] if len(clf.classes_) > 1 else np.zeros(len(X_test))

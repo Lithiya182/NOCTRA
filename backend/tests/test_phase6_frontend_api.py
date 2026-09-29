@@ -74,8 +74,13 @@ def test_classification_feedback_submission_and_audit():
         "reviewed_by": "analyst_beta",
     }
 
-    from app.config import API_KEY
-    res = client.post(f"/api/alerts/{alert_id}/feedback", json=feedback_payload, headers={"X-API-Key": API_KEY})
+    from app.auth import create_reviewer
+    create_reviewer("analyst_beta", "reviewer", "noctra-rev-reviewer-test-beta")
+    res = client.post(
+        f"/api/alerts/{alert_id}/feedback",
+        json=feedback_payload,
+        headers={"Authorization": "Bearer noctra-rev-reviewer-test-beta"},
+    )
     assert res.status_code == 200
     res_data = res.json()
     assert res_data["feedback"] == "correct"

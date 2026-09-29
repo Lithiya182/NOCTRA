@@ -24,8 +24,11 @@ CONTRACT_FIELDS = [
 
 def _client():
     from app.config import API_KEY
+    from app.auth import create_reviewer
+    create_reviewer("Test Lead Reviewer", "reviewer", "noctra-test-reviewer-token")
     with TestClient(app) as client:  # triggers startup ingest
         client.headers["X-API-Key"] = API_KEY
+        client.headers["Authorization"] = "Bearer noctra-test-reviewer-token"
         return client
 
 

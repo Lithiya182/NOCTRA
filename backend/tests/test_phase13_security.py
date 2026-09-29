@@ -33,7 +33,16 @@ def _do_cleanup():
 
 
 def test_unauthenticated_transition_rejected():
-    """Verify state-changing alert transition endpoint rejects unauthenticated/invalid requests with 401."""
+    """Verify state-changing alert transition endpoint enforces reviewer security:
+    - Rejects unauthenticated/invalid requests with 401
+    - Rejects service API_KEY (X-API-Key or Bearer) with 401
+    - Rejects viewer role with 403
+    - Accepts authorized reviewer role with 200
+    """
+    from app.auth import create_reviewer
+    create_reviewer("Sec Reviewer", "reviewer", "sec-reviewer-token")
+    create_reviewer("Sec Viewer", "viewer", "sec-viewer-token")
+
     execute(
         "INSERT OR REPLACE INTO sites (site_id, lat, lon, classification, confidence, explanation, severity, is_anomalous, status, first_seen, last_seen, d_industrial_m, d_agri_m, d_residential_m) "
         "VALUES ('SITE_P13_TEST_1', 23.76, 86.41, 'industrial_fire', 0.90, 'Test site', 'severe', 1, 'alert_triggered', datetime('now'), datetime('now'), 100.0, 5000.0, 5000.0)"
@@ -52,32 +61,39 @@ def test_unauthenticated_transition_rejected():
     assert res_no_auth.status_code == 401
     assert "Unauthorized" in res_no_auth.json()["detail"]
 
-    # 2. Invalid API key -> 401
+    # 2. Invalid Bearer token -> 401
     res_invalid = client.post(
         f"/api/alerts/{alert_id}/transition",
         json=payload,
-        headers={"X-API-Key": "invalid-secret-key"},
+        headers={"Authorization": "Bearer invalid-secret-token"},
     )
     assert res_invalid.status_code == 401
 
-    # 3. Valid X-API-Key header -> 200
-    res_valid_header = client.post(
+    # 3. Service API Key alone is rejected (reviewer token required) -> 401
+    res_api_key = client.post(
         f"/api/alerts/{alert_id}/transition",
         json=payload,
         headers=DEV_HEADER,
     )
-    assert res_valid_header.status_code == 200
-    assert res_valid_header.json()["alert"]["status"] == "confirmed"
+    assert res_api_key.status_code == 401
 
-    # 4. Valid Bearer Token -> 200
-    payload_dismiss = {"action": "dismiss", "analyst_note": "Test dismiss"}
-    res_valid_bearer = client.post(
+    # 4. Viewer role is forbidden -> 403
+    res_viewer = client.post(
         f"/api/alerts/{alert_id}/transition",
-        json=payload_dismiss,
-        headers=BEARER_HEADER,
+        json=payload,
+        headers={"Authorization": "Bearer sec-viewer-token"},
     )
-    assert res_valid_bearer.status_code == 200
-    assert res_valid_bearer.json()["alert"]["status"] == "dismissed"
+    assert res_viewer.status_code == 403
+
+    # 5. Valid Reviewer Token -> 200
+    res_valid_reviewer = client.post(
+        f"/api/alerts/{alert_id}/transition",
+        json=payload,
+        headers={"Authorization": "Bearer sec-reviewer-token"},
+    )
+    assert res_valid_reviewer.status_code == 200
+    assert res_valid_reviewer.json()["alert"]["status"] == "confirmed"
+    assert res_valid_reviewer.json()["alert"]["reviewed_by"] == "Sec Reviewer"
 
 
 def test_unauthenticated_dev_endpoints_rejected():
