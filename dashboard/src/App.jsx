@@ -2,7 +2,10 @@ import { useEffect, useMemo, useRef, useState } from "react";
 import { MapContainer, TileLayer, CircleMarker, Polygon, Marker, Popup, useMap } from "react-leaflet";
 import axios from "axios";
 
-axios.defaults.headers.common["X-API-Key"] = import.meta.env.VITE_API_KEY || "noctra-dev-key-2026";
+const savedToken = sessionStorage.getItem("noctra_reviewer_token") || "";
+if (savedToken) {
+  axios.defaults.headers.common["Authorization"] = `Bearer ${savedToken}`;
+}
 
 const CLASS_COLORS = {
   industrial_fire: "#e63946",
@@ -131,6 +134,32 @@ export default function App() {
   const [pushStatus, setPushStatus] = useState("off");
   const errorShown = useRef({});
 
+  const [reviewerToken, setReviewerToken] = useState(savedToken);
+  const [tokenInput, setTokenInput] = useState(savedToken);
+
+  const handleSaveToken = () => {
+    const t = tokenInput.trim();
+    if (t) {
+      sessionStorage.setItem("noctra_reviewer_token", t);
+      axios.defaults.headers.common["Authorization"] = `Bearer ${t}`;
+      setReviewerToken(t);
+      setToast("Reviewer token saved to session.");
+    } else {
+      sessionStorage.removeItem("noctra_reviewer_token");
+      delete axios.defaults.headers.common["Authorization"];
+      setReviewerToken("");
+      setToast("Reviewer token cleared.");
+    }
+  };
+
+  const handleClearToken = () => {
+    setTokenInput("");
+    sessionStorage.removeItem("noctra_reviewer_token");
+    delete axios.defaults.headers.common["Authorization"];
+    setReviewerToken("");
+    setToast("Reviewer token cleared.");
+  };
+
   const [targetLocation, setTargetLocation] = useState(null);
   const [selectedSiteId, setSelectedSiteId] = useState(null);
   const markerRefs = useRef({});
@@ -228,7 +257,6 @@ export default function App() {
       const { data } = await axios.post(`/api/alerts/${alert.id}/transition`, {
         action,
         analyst_note: analystNote,
-        reviewed_by: "analyst",
       });
       const sms = data?.dispatched?.sms;
       const push = data?.dispatched?.push;
@@ -238,7 +266,7 @@ export default function App() {
           : `Alert #${alert.id} dismissed.`
       );
     } catch (e) {
-      setToast(`transition failed: ${e.message}`);
+      setToast(`transition failed: ${e.response?.data?.detail || e.message}`);
     }
   };
 
@@ -248,11 +276,10 @@ export default function App() {
       await axios.post(`/api/alerts/${alert.id}/feedback`, {
         feedback,
         analyst_note: analystNote,
-        reviewed_by: "analyst",
       });
       setToast(`Feedback logged: ${feedback === "correct" ? "👍 Verified Correct" : "👎 Misclassified"} for Alert #${alert.id}`);
     } catch (e) {
-      setToast(`feedback submission failed: ${e.message}`);
+      setToast(`feedback submission failed: ${e.response?.data?.detail || e.message}`);
     }
   };
 
@@ -263,6 +290,26 @@ export default function App() {
       {toast && <div className="toast" onClick={() => setToast(null)}>{toast}</div>}
       <header className="topbar">
         <div className="brand">🛰️ NOCTRA <span>SIH26162 · District Control Console</span></div>
+        <div className="authbar" style={{ display: "flex", alignItems: "center", gap: "8px" }}>
+          <input
+            type="password"
+            placeholder="Reviewer Token..."
+            value={tokenInput}
+            onChange={(e) => setTokenInput(e.target.value)}
+            style={{ padding: "4px 8px", fontSize: "12px", borderRadius: "4px", border: "1px solid #444", background: "#1a1a1a", color: "#fff", width: "160px" }}
+          />
+          <button onClick={handleSaveToken} style={{ padding: "4px 8px", fontSize: "12px", cursor: "pointer", background: "#0d6efd", color: "#fff", border: "none", borderRadius: "4px" }}>
+            {reviewerToken ? "Update" : "Save"}
+          </button>
+          {reviewerToken && (
+            <button onClick={handleClearToken} title="Clear Token" style={{ padding: "4px 6px", fontSize: "11px", cursor: "pointer", background: "#444", color: "#ccc", border: "none", borderRadius: "4px" }}>
+              ✕
+            </button>
+          )}
+          <span style={{ fontSize: "11px", fontWeight: "bold", color: reviewerToken ? "#198754" : "#fd7e14" }}>
+            {reviewerToken ? "● Authed" : "○ No Token"}
+          </span>
+        </div>
         <div className="pushbadge">Web Push: {pushStatus === "on" ? "enabled 🔔" : pushStatus === "error" ? "blocked" : "off"}</div>
       </header>
 
