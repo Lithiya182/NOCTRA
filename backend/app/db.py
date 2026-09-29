@@ -142,12 +142,21 @@ def init_schema(conn: sqlite3.Connection) -> None:
             boundary_json TEXT NOT NULL
         );
 
+        CREATE TABLE IF NOT EXISTS reviewers (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            name TEXT NOT NULL,
+            role TEXT NOT NULL CHECK(role IN ('reviewer', 'viewer')),
+            token_hash TEXT NOT NULL UNIQUE,
+            active INTEGER NOT NULL DEFAULT 1
+        );
+
         CREATE INDEX IF NOT EXISTS idx_det_date ON detections(acq_date);
         CREATE INDEX IF NOT EXISTS idx_sites_class ON sites(classification);
         CREATE INDEX IF NOT EXISTS idx_alerts_status ON alerts(status);
         CREATE INDEX IF NOT EXISTS idx_alert_reviews_alert ON alert_reviews(alert_id);
         CREATE INDEX IF NOT EXISTS idx_alert_reviews_site ON alert_reviews(site_id);
         CREATE INDEX IF NOT EXISTS idx_imagery_site ON imagery(site_id);
+        CREATE INDEX IF NOT EXISTS idx_reviewers_token_hash ON reviewers(token_hash);
         CREATE UNIQUE INDEX IF NOT EXISTS uq_detection_natural_key
             ON detections(latitude, longitude, acq_date, acq_time, satellite);
         """

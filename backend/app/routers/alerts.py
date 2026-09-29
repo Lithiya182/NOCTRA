@@ -3,7 +3,7 @@ from __future__ import annotations
 from fastapi import APIRouter, Depends, HTTPException
 
 from .. import alert_engine
-from ..auth import verify_api_key
+from ..auth import require_reviewer, verify_api_key
 from ..models import AlertOut, AlertReviewOut, FeedbackIn, TransitionIn
 
 router = APIRouter(prefix="/api/alerts", tags=["alerts"])
@@ -57,11 +57,13 @@ def record_feedback(alert_id: int, body: FeedbackIn) -> dict:
         raise HTTPException(404, str(exc)) from exc
 
 
-@router.post("/{alert_id}/notify", response_model=dict, dependencies=[Depends(verify_api_key)])
-def notify(alert_id: int) -> dict:
-    """Manually re-fire SMS + Web Push for an alert (rehearsal / retry)."""
+@router.post("/{alert_id}/notify", response_model=dict)
+def notify(alert_id: int, reviewer: dict = Depends(require_reviewer)) -> dict:
+    """Manually re-fire SMS + Web Push for a confirmed alert (rehearsal / retry)."""
     rows = alert_engine.get_alerts()
     for a in rows:
         if a["id"] == alert_id:
+            if a.get("status") != "confirmed":
+                raise HTTPException(400, "Alert must be confirmed before dispatching notifications")
             return alert_engine.dispatch_public(a)
     raise HTTPException(404, "alert not found")
