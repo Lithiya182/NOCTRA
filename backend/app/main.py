@@ -12,7 +12,7 @@ from fastapi.middleware.cors import CORSMiddleware
 from fastapi.staticfiles import StaticFiles
 
 from . import ml_model, db
-from .config import CORS_ORIGINS, FIRMS_REAL_CSV
+from .config import CORS_ORIGINS, DATA_DIR, FIRMS_REAL_CSV
 from .ingest import ingest
 from .db import init_schema
 from .routers import alerts, dev, health, needs, polygons, push, sites
@@ -98,7 +98,7 @@ app.add_middleware(
 for r in (health, sites, alerts, polygons, needs, push, dev):
     app.include_router(r.router)
 
-imagery_dir = Path("data/imagery")
+imagery_dir = DATA_DIR / "imagery"
 if imagery_dir.exists():
     app.mount("/data/imagery", StaticFiles(directory=imagery_dir), name="imagery")
 
