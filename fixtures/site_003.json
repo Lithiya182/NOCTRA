@@ -1,0 +1,266 @@
+{
+  "schema_version": "1.0.0",
+  "fixture_id": "SITE-003",
+  "title": "Noisy Isolated Hotspot (Transient Sensor Artifact, No Escalation)",
+  "site": {
+    "schema_version": "1.0.0",
+    "site_id": "TG-23950-85320",
+    "lat": 23.95,
+    "lon": 85.32,
+    "classification": "other",
+    "confidence": 0.4,
+    "explanation": "No spatial evidence (nearest industrial: 100225m, nearest agricultural: 1077451m), insufficient temporal evidence.",
+    "severity": "minor",
+    "is_anomalous": 0,
+    "status": "routine",
+    "first_seen": "2025-11-10T01:40:00Z",
+    "last_seen": "2025-11-10T01:40:00Z",
+    "max_frp": 3.0,
+    "brightness": 302.5,
+    "persistence": 1,
+    "consec_days": 1,
+    "duty_cycle_pct": 20.0,
+    "d_industrial_m": 100225.07,
+    "d_agri_m": 1077450.88,
+    "d_residential_m": 113597.54,
+    "coverage_status": "covered",
+    "last_pass_date": "2025-11-10",
+    "days_since_last_pass": 4,
+    "thermal_dna": {
+      "typical_frp": 3.0,
+      "median_frp": 3.0,
+      "variability": 0.0,
+      "typical_frequency": 0.2,
+      "active_hours": [1],
+      "typical_duration": 1.0,
+      "history_days": 1,
+      "stage_status": "unbuilt",
+      "mock": true
+    }
+  },
+  "event": {
+    "schema_version": "1.0.0",
+    "event_id": "EVT-TG-23950-85320-001",
+    "site_id": "TG-23950-85320",
+    "detection_refs": [301],
+    "observed_at": "2025-11-10T01:40:00Z",
+    "latitude": 23.95,
+    "longitude": 85.32,
+    "frp": 3.0,
+    "brightness": 302.5,
+    "bright_ti5": 288.1,
+    "satellite": "NOAA-20",
+    "instrument": "VIIRS",
+    "daynight": "N",
+    "confidence": 40.0,
+    "provenance": {
+      "is_synthetic": 1,
+      "source": "synthetic",
+      "ingestion_batch": "seed_20251110_20251114"
+    }
+  },
+  "evidence": {
+    "schema_version": "1.0.0",
+    "rule_classification": {
+      "classification": "other",
+      "confidence": 0.4,
+      "reasons": [
+        "No spatial evidence (nearest industrial: >100km, nearest agricultural: >1000km)",
+        "Insufficient temporal evidence (single pass detection only)"
+      ],
+      "spatial": "none",
+      "temporal": "insufficient",
+      "intensity": "weak",
+      "sufficiency": "insufficient",
+      "stage_status": "live"
+    },
+    "ebm_shadow": {
+      "label": "other",
+      "status": "experimental",
+      "score": 0.88,
+      "feature_importances": {
+        "frp": 0.45,
+        "duty_cycle_pct": 0.35,
+        "d_industrial_m": 0.2
+      },
+      "stage_status": "unbuilt",
+      "mock": true
+    },
+    "severity": {
+      "tier": "minor",
+      "model_status": "rule_based",
+      "hysteresis_state": "steady",
+      "consecutive_passes_in_tier": 1,
+      "stage_status": "partially_implemented",
+      "mock": true
+    },
+    "change": {
+      "ewma_baseline": 3.0,
+      "cusum": 0.0,
+      "change_detected": false,
+      "gap_tolerant": true,
+      "stage_status": "unbuilt",
+      "mock": true
+    },
+    "sentinel": {
+      "available": false,
+      "cloud_pct": 85.0,
+      "result": "uninformative",
+      "reliability": 0.1,
+      "file_path": null,
+      "stage_status": "partially_implemented",
+      "mock": true
+    },
+    "fusion": {
+      "prior_odds": 0.05,
+      "signals": [
+        {
+          "signal_name": "thermal_rules",
+          "lr": 0.2,
+          "reliability": 0.4,
+          "effective_lr": 0.52
+        }
+      ],
+      "posterior": 0.02,
+      "stage_status": "unbuilt",
+      "mock": true
+    },
+    "routing": {
+      "path": "unconfirmed",
+      "reason": "Transient isolated single-pass hotspot; low intensity (3.0 MW); no spatial or temporal corroboration; no escalation.",
+      "priority_score": 2.0,
+      "requires_human_review": false,
+      "stage_status": "partially_implemented",
+      "mock": true
+    }
+  },
+  "review": null,
+  "trace": {
+    "schema_version": "1.0.0",
+    "trace_id": "TRACE-TG-23950-85320-001",
+    "site_id": "TG-23950-85320",
+    "alert_id": null,
+    "steps": [
+      {
+        "step_no": 1,
+        "stage": "FIRMS_INGEST",
+        "summary": "Ingested low-confidence night pass detection (FRP=3.0 MW, Lat=23.950, Lon=85.320)",
+        "evidence_ref": "event.EVT-TG-23950-85320-001",
+        "timestamp": "2025-11-10T01:40:02Z",
+        "stage_status": "live",
+        "mock": false
+      },
+      {
+        "step_no": 2,
+        "stage": "SITE_FORMATION",
+        "summary": "Formed tentative site TG-23950-85320 (single observation)",
+        "evidence_ref": "site.TG-23950-85320",
+        "timestamp": "2025-11-10T01:40:03Z",
+        "stage_status": "live",
+        "mock": false
+      },
+      {
+        "step_no": 3,
+        "stage": "THERMAL_DNA_OSM",
+        "summary": "No adjacent industrial or agricultural polygon. Thermal DNA: single pass, 0 history days",
+        "evidence_ref": "site.thermal_dna",
+        "timestamp": "2025-11-10T01:40:04Z",
+        "stage_status": "unbuilt",
+        "mock": true
+      },
+      {
+        "step_no": 4,
+        "stage": "CLASSIFICATION_RULE_AND_EBM",
+        "summary": "Rule classification: other (insufficient temporal evidence). EBM shadow: other (score 0.88)",
+        "evidence_ref": "evidence.rule_classification",
+        "timestamp": "2025-11-10T01:40:05Z",
+        "stage_status": "live",
+        "mock": false
+      },
+      {
+        "step_no": 5,
+        "stage": "SEVERITY_AND_HYSTERESIS",
+        "summary": "Minor severity tier (3.0 MW). Hysteresis state: steady",
+        "evidence_ref": "evidence.severity",
+        "timestamp": "2025-11-10T01:40:06Z",
+        "stage_status": "partially_implemented",
+        "mock": true
+      },
+      {
+        "step_no": 6,
+        "stage": "CHANGE_DETECTION_EWMA_CUSUM",
+        "summary": "Baseline initialized at 3.0 MW. CUSUM=0.0. No drift detected",
+        "evidence_ref": "evidence.change",
+        "timestamp": "2025-11-10T01:40:07Z",
+        "stage_status": "unbuilt",
+        "mock": true
+      },
+      {
+        "step_no": 7,
+        "stage": "SENTINEL2_CORROBORATION",
+        "summary": "Heavy cloud cover (85%). Sentinel-2 optical chip uninformative",
+        "evidence_ref": "evidence.sentinel",
+        "timestamp": "2025-11-10T01:40:08Z",
+        "stage_status": "partially_implemented",
+        "mock": true
+      },
+      {
+        "step_no": 8,
+        "stage": "BAYESIAN_FUSION",
+        "summary": "Posterior hazard probability: 0.02. Confirms transient non-hazard",
+        "evidence_ref": "evidence.fusion",
+        "timestamp": "2025-11-10T01:40:09Z",
+        "stage_status": "unbuilt",
+        "mock": true
+      },
+      {
+        "step_no": 9,
+        "stage": "ROUTING_AND_PRIORITY",
+        "summary": "Routed to unconfirmed path. Low priority (2.0); dropped from operator queue",
+        "evidence_ref": "evidence.routing",
+        "timestamp": "2025-11-10T01:40:10Z",
+        "stage_status": "partially_implemented",
+        "mock": true
+      },
+      {
+        "step_no": 10,
+        "stage": "HUMAN_REVIEW",
+        "summary": "De-escalated by routing triage; no human review requested",
+        "evidence_ref": null,
+        "timestamp": "2025-11-10T01:40:11Z",
+        "stage_status": "live",
+        "mock": false
+      },
+      {
+        "step_no": 11,
+        "stage": "TWILIO_DISPATCH",
+        "summary": "Gated: unconfirmed minor anomaly generates zero outbound notifications",
+        "evidence_ref": "trace.notification",
+        "timestamp": "2025-11-10T01:40:12Z",
+        "stage_status": "live",
+        "mock": false
+      },
+      {
+        "step_no": 12,
+        "stage": "DECISION_TRACE",
+        "summary": "Decision trace TRACE-TG-23950-85320-001 sealed without alert creation",
+        "evidence_ref": "trace.trace_id",
+        "timestamp": "2025-11-10T01:40:13Z",
+        "stage_status": "unbuilt",
+        "mock": true
+      }
+    ],
+    "notification": {
+      "message_sid": null,
+      "status": "not_dispatched",
+      "channel": "sms",
+      "recipient": null,
+      "dispatched_at": null,
+      "authorized_by": null,
+      "stage_status": "live",
+      "mock": false
+    },
+    "created_at": "2025-11-10T01:40:02Z",
+    "updated_at": "2025-11-10T01:40:13Z"
+  }
+}

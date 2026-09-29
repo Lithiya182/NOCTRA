@@ -1,0 +1,285 @@
+{
+  "schema_version": "1.0.0",
+  "fixture_id": "SITE-004",
+  "title": "Seasonal Agricultural Burn (Expected Stubble Burning, Confirmation Path)",
+  "site": {
+    "schema_version": "1.0.0",
+    "site_id": "TG-30667-75925",
+    "lat": 30.66718,
+    "lon": 75.92491,
+    "classification": "agricultural_burn",
+    "confidence": 0.9,
+    "explanation": "Inside agricultural landuse AND short-lived (2 consecutive days) AND in agricultural month (November).",
+    "severity": "moderate",
+    "is_anomalous": 0,
+    "status": "confirmed",
+    "first_seen": "2025-11-11T13:45:00Z",
+    "last_seen": "2025-11-12T13:45:00Z",
+    "max_frp": 21.77,
+    "brightness": 318.2,
+    "persistence": 2,
+    "consec_days": 2,
+    "duty_cycle_pct": 40.0,
+    "d_industrial_m": 14500.0,
+    "d_agri_m": 0.0,
+    "d_residential_m": 1800.0,
+    "coverage_status": "covered",
+    "last_pass_date": "2025-11-12",
+    "days_since_last_pass": 2,
+    "thermal_dna": {
+      "typical_frp": 21.0,
+      "median_frp": 20.8,
+      "variability": 1.8,
+      "typical_frequency": 0.5,
+      "active_hours": [13, 14],
+      "typical_duration": 2.0,
+      "history_days": 2,
+      "stage_status": "unbuilt",
+      "mock": true
+    }
+  },
+  "event": {
+    "schema_version": "1.0.0",
+    "event_id": "EVT-TG-30667-75925-001",
+    "site_id": "TG-30667-75925",
+    "detection_refs": [401, 402],
+    "observed_at": "2025-11-12T13:45:00Z",
+    "latitude": 30.66718,
+    "longitude": 75.92491,
+    "frp": 21.77,
+    "brightness": 318.2,
+    "bright_ti5": 295.0,
+    "satellite": "NOAA-20",
+    "instrument": "VIIRS",
+    "daynight": "D",
+    "confidence": 90.0,
+    "provenance": {
+      "is_synthetic": 1,
+      "source": "synthetic",
+      "ingestion_batch": "seed_20251110_20251114"
+    }
+  },
+  "evidence": {
+    "schema_version": "1.0.0",
+    "rule_classification": {
+      "classification": "agricultural_burn",
+      "confidence": 0.9,
+      "reasons": [
+        "Inside agricultural landuse polygon",
+        "Short-lived activity <= 3 consecutive days",
+        "Observed in recognized post-monsoon harvest burning month (November)"
+      ],
+      "spatial": "polygon_containment",
+      "temporal": "sufficient",
+      "intensity": "moderate",
+      "sufficiency": "sufficient",
+      "stage_status": "live"
+    },
+    "ebm_shadow": {
+      "label": "agricultural_burn",
+      "status": "experimental",
+      "score": 0.92,
+      "feature_importances": {
+        "month": 0.42,
+        "d_agri_m": 0.38,
+        "consec_days": 0.15,
+        "frp": 0.05
+      },
+      "stage_status": "unbuilt",
+      "mock": true
+    },
+    "severity": {
+      "tier": "moderate",
+      "model_status": "rule_based",
+      "hysteresis_state": "steady",
+      "consecutive_passes_in_tier": 2,
+      "stage_status": "partially_implemented",
+      "mock": true
+    },
+    "change": {
+      "ewma_baseline": 20.5,
+      "cusum": 1.2,
+      "change_detected": false,
+      "gap_tolerant": true,
+      "stage_status": "unbuilt",
+      "mock": true
+    },
+    "sentinel": {
+      "available": true,
+      "cloud_pct": 5.0,
+      "result": "no_burn_scar",
+      "reliability": 0.75,
+      "file_path": "data/imagery/TG-30667-75925/20251112.tif",
+      "stage_status": "partially_implemented",
+      "mock": true
+    },
+    "fusion": {
+      "prior_odds": 0.1,
+      "signals": [
+        {
+          "signal_name": "thermal_rules",
+          "lr": 1.2,
+          "reliability": 0.9,
+          "effective_lr": 1.18
+        }
+      ],
+      "posterior": 0.08,
+      "stage_status": "unbuilt",
+      "mock": true
+    },
+    "routing": {
+      "path": "benign",
+      "reason": "Inside agricultural polygon during harvest season; expected controlled residue clearance; follows confirmation path.",
+      "priority_score": 18.0,
+      "requires_human_review": false,
+      "stage_status": "partially_implemented",
+      "mock": true
+    }
+  },
+  "review": {
+    "schema_version": "1.0.0",
+    "id": 8,
+    "alert_id": 15,
+    "site_id": "TG-30667-75925",
+    "action": "confirm",
+    "previous_status": "alert_triggered",
+    "new_status": "confirmed",
+    "analyst_note": "Seasonal crop residue burning confirmed by district nodal officer. Within designated permitted burning window.",
+    "reviewed_by": "District Agriculture Officer",
+    "feedback_label": "correct",
+    "created_at": "2025-11-12T14:30:00Z",
+    "reviewer_id": 1,
+    "corrected_class": null,
+    "corrected_severity": null,
+    "stage_status": "partially_implemented",
+    "mock": true
+  },
+  "trace": {
+    "schema_version": "1.0.0",
+    "trace_id": "TRACE-TG-30667-75925-001",
+    "site_id": "TG-30667-75925",
+    "alert_id": 15,
+    "steps": [
+      {
+        "step_no": 1,
+        "stage": "FIRMS_INGEST",
+        "summary": "Ingested VIIRS daytime detection in Punjab plain (FRP=21.77 MW, Lat=30.667, Lon=75.925)",
+        "evidence_ref": "event.EVT-TG-30667-75925-001",
+        "timestamp": "2025-11-12T13:45:02Z",
+        "stage_status": "live",
+        "mock": false
+      },
+      {
+        "step_no": 2,
+        "stage": "SITE_FORMATION",
+        "summary": "Associated with active stubble burning cluster TG-30667-75925 (day 2)",
+        "evidence_ref": "site.TG-30667-75925",
+        "timestamp": "2025-11-12T13:45:03Z",
+        "stage_status": "live",
+        "mock": false
+      },
+      {
+        "step_no": 3,
+        "stage": "THERMAL_DNA_OSM",
+        "summary": "Inside agricultural polygon. Season: post-monsoon harvest window (November)",
+        "evidence_ref": "site.thermal_dna",
+        "timestamp": "2025-11-12T13:45:04Z",
+        "stage_status": "unbuilt",
+        "mock": true
+      },
+      {
+        "step_no": 4,
+        "stage": "CLASSIFICATION_RULE_AND_EBM",
+        "summary": "Rule classification: agricultural_burn (conf 0.90). EBM shadow: agricultural_burn (score 0.92)",
+        "evidence_ref": "evidence.rule_classification",
+        "timestamp": "2025-11-12T13:45:05Z",
+        "stage_status": "live",
+        "mock": false
+      },
+      {
+        "step_no": 5,
+        "stage": "SEVERITY_AND_HYSTERESIS",
+        "summary": "FRP 21.77 MW mapped to moderate tier. Hysteresis state: steady",
+        "evidence_ref": "evidence.severity",
+        "timestamp": "2025-11-12T13:45:06Z",
+        "stage_status": "partially_implemented",
+        "mock": true
+      },
+      {
+        "step_no": 6,
+        "stage": "CHANGE_DETECTION_EWMA_CUSUM",
+        "summary": "EWMA baseline 20.5 MW, CUSUM=1.2. Consistent with expected seasonal burn duration",
+        "evidence_ref": "evidence.change",
+        "timestamp": "2025-11-12T13:45:07Z",
+        "stage_status": "unbuilt",
+        "mock": true
+      },
+      {
+        "step_no": 7,
+        "stage": "SENTINEL2_CORROBORATION",
+        "summary": "Sentinel-2 optical chip verified. Cloud cover 5%. Small localized field burn scar",
+        "evidence_ref": "evidence.sentinel",
+        "timestamp": "2025-11-12T13:45:08Z",
+        "stage_status": "partially_implemented",
+        "mock": true
+      },
+      {
+        "step_no": 8,
+        "stage": "BAYESIAN_FUSION",
+        "summary": "Posterior hazard probability 0.08. Confirms controlled agricultural activity",
+        "evidence_ref": "evidence.fusion",
+        "timestamp": "2025-11-12T13:45:09Z",
+        "stage_status": "unbuilt",
+        "mock": true
+      },
+      {
+        "step_no": 9,
+        "stage": "ROUTING_AND_PRIORITY",
+        "summary": "Routed to benign confirmation path. Priority score 18.0",
+        "evidence_ref": "evidence.routing",
+        "timestamp": "2025-11-12T13:45:10Z",
+        "stage_status": "partially_implemented",
+        "mock": true
+      },
+      {
+        "step_no": 10,
+        "stage": "HUMAN_REVIEW",
+        "summary": "District Agriculture Officer confirmed permitted crop residue burn with audit note",
+        "evidence_ref": "review.id=8",
+        "timestamp": "2025-11-12T14:30:00Z",
+        "stage_status": "live",
+        "mock": false
+      },
+      {
+        "step_no": 11,
+        "stage": "TWILIO_DISPATCH",
+        "summary": "Permitted agricultural burn does not require public emergency evacuation notifications",
+        "evidence_ref": "trace.notification",
+        "timestamp": "2025-11-12T14:30:01Z",
+        "stage_status": "live",
+        "mock": false
+      },
+      {
+        "step_no": 12,
+        "stage": "DECISION_TRACE",
+        "summary": "Decision trace TRACE-TG-30667-75925-001 sealed with review record attached",
+        "evidence_ref": "trace.trace_id",
+        "timestamp": "2025-11-12T14:30:02Z",
+        "stage_status": "unbuilt",
+        "mock": true
+      }
+    ],
+    "notification": {
+      "message_sid": null,
+      "status": "not_dispatched",
+      "channel": "sms",
+      "recipient": null,
+      "dispatched_at": null,
+      "authorized_by": "District Agriculture Officer",
+      "stage_status": "live",
+      "mock": false
+    },
+    "created_at": "2025-11-12T13:45:02Z",
+    "updated_at": "2025-11-12T14:30:02Z"
+  }
+}

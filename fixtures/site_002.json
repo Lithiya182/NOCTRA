@@ -1,0 +1,274 @@
+{
+  "schema_version": "1.0.0",
+  "fixture_id": "SITE-002",
+  "title": "Hero Site (Persistent Abnormal Seam Fire, High Severity, Hazard Route, Awaiting Review)",
+  "site": {
+    "schema_version": "1.0.0",
+    "site_id": "TG-23731-86324",
+    "lat": 23.73117,
+    "lon": 86.32433,
+    "classification": "industrial_fire",
+    "confidence": 0.98,
+    "explanation": "Inside industrial polygon (strong spatial evidence). Active on 5/5 recent passes (persistent). Anomalous intensity spike (>100 MW).",
+    "severity": "extreme",
+    "is_anomalous": 1,
+    "status": "alert_triggered",
+    "first_seen": "2025-11-10T01:40:00Z",
+    "last_seen": "2025-11-14T13:40:00Z",
+    "max_frp": 119.87,
+    "brightness": 374.5,
+    "persistence": 5,
+    "consec_days": 5,
+    "duty_cycle_pct": 100.0,
+    "d_industrial_m": 0.0,
+    "d_agri_m": 1163450.0,
+    "d_residential_m": 420.0,
+    "coverage_status": "covered",
+    "last_pass_date": "2025-11-14",
+    "days_since_last_pass": 0,
+    "thermal_dna": {
+      "typical_frp": 38.5,
+      "median_frp": 36.2,
+      "variability": 8.4,
+      "typical_frequency": 1.0,
+      "active_hours": [1, 2, 13, 14],
+      "typical_duration": 5.0,
+      "history_days": 5,
+      "stage_status": "unbuilt",
+      "mock": true
+    }
+  },
+  "event": {
+    "schema_version": "1.0.0",
+    "event_id": "EVT-TG-23731-86324-001",
+    "site_id": "TG-23731-86324",
+    "detection_refs": [204, 205],
+    "observed_at": "2025-11-14T13:40:00Z",
+    "latitude": 23.73117,
+    "longitude": 86.32433,
+    "frp": 119.87,
+    "brightness": 374.5,
+    "bright_ti5": 310.2,
+    "satellite": "NOAA-20",
+    "instrument": "VIIRS",
+    "daynight": "D",
+    "confidence": 98.0,
+    "provenance": {
+      "is_synthetic": 1,
+      "source": "synthetic",
+      "ingestion_batch": "seed_20251110_20251114"
+    }
+  },
+  "evidence": {
+    "schema_version": "1.0.0",
+    "rule_classification": {
+      "classification": "industrial_fire",
+      "confidence": 0.98,
+      "reasons": [
+        "Inside industrial polygon (strong spatial evidence)",
+        "Persistent thermal activity across 5 consecutive passes",
+        "Severe/extreme FRP intensity (>100 MW) indicating major uncontrolled thermal event"
+      ],
+      "spatial": "polygon_containment",
+      "temporal": "persistent",
+      "intensity": "very-high",
+      "sufficiency": "sufficient",
+      "stage_status": "live"
+    },
+    "ebm_shadow": {
+      "label": "industrial_fire",
+      "status": "experimental",
+      "score": 0.96,
+      "feature_importances": {
+        "frp": 0.58,
+        "d_industrial_m": 0.24,
+        "duty_cycle_pct": 0.12,
+        "brightness": 0.06
+      },
+      "stage_status": "unbuilt",
+      "mock": true
+    },
+    "severity": {
+      "tier": "extreme",
+      "model_status": "rule_based",
+      "hysteresis_state": "escalating",
+      "consecutive_passes_in_tier": 2,
+      "stage_status": "partially_implemented",
+      "mock": true
+    },
+    "change": {
+      "ewma_baseline": 40.2,
+      "cusum": 79.67,
+      "change_detected": true,
+      "gap_tolerant": true,
+      "stage_status": "unbuilt",
+      "mock": true
+    },
+    "sentinel": {
+      "available": true,
+      "cloud_pct": 12.0,
+      "result": "plume_detected",
+      "reliability": 0.88,
+      "file_path": "data/imagery/TG-23731-86324/20251114.tif",
+      "stage_status": "partially_implemented",
+      "mock": true
+    },
+    "fusion": {
+      "prior_odds": 0.4,
+      "signals": [
+        {
+          "signal_name": "thermal_rules",
+          "lr": 14.5,
+          "reliability": 0.95,
+          "effective_lr": 13.8
+        },
+        {
+          "signal_name": "sentinel2_optical",
+          "lr": 6.2,
+          "reliability": 0.88,
+          "effective_lr": 5.46
+        }
+      ],
+      "posterior": 0.94,
+      "stage_status": "unbuilt",
+      "mock": true
+    },
+    "routing": {
+      "path": "hazard",
+      "reason": "Extreme FRP spike exceeding 3x background baseline with optical plume corroboration; hazard route; awaiting human review before dispatch.",
+      "priority_score": 95.0,
+      "requires_human_review": true,
+      "stage_status": "partially_implemented",
+      "mock": true
+    }
+  },
+  "review": null,
+  "trace": {
+    "schema_version": "1.0.0",
+    "trace_id": "TRACE-TG-23731-86324-001",
+    "site_id": "TG-23731-86324",
+    "alert_id": 12,
+    "steps": [
+      {
+        "step_no": 1,
+        "stage": "FIRMS_INGEST",
+        "summary": "Ingested VIIRS I-band detection (FRP=119.87 MW, Lat=23.731, Lon=86.324)",
+        "evidence_ref": "event.EVT-TG-23731-86324-001",
+        "timestamp": "2025-11-14T13:40:02Z",
+        "stage_status": "live",
+        "mock": false
+      },
+      {
+        "step_no": 2,
+        "stage": "SITE_FORMATION",
+        "summary": "Clustered with existing Jharia site TG-23731-86324 (persistence 5 passes)",
+        "evidence_ref": "site.TG-23731-86324",
+        "timestamp": "2025-11-14T13:40:03Z",
+        "stage_status": "live",
+        "mock": false
+      },
+      {
+        "step_no": 3,
+        "stage": "THERMAL_DNA_OSM",
+        "summary": "Site within Jharia coal mining polygon. Historical baseline median FRP 38.5 MW",
+        "evidence_ref": "site.thermal_dna",
+        "timestamp": "2025-11-14T13:40:04Z",
+        "stage_status": "unbuilt",
+        "mock": true
+      },
+      {
+        "step_no": 4,
+        "stage": "CLASSIFICATION_RULE_AND_EBM",
+        "summary": "Rule classification: industrial_fire (conf: 0.98). EBM shadow: industrial_fire (score: 0.96)",
+        "evidence_ref": "evidence.rule_classification",
+        "timestamp": "2025-11-14T13:40:05Z",
+        "stage_status": "live",
+        "mock": false
+      },
+      {
+        "step_no": 5,
+        "stage": "SEVERITY_AND_HYSTERESIS",
+        "summary": "FRP 119.87 MW triggers extreme severity tier (>100 MW). Hysteresis state: escalating",
+        "evidence_ref": "evidence.severity",
+        "timestamp": "2025-11-14T13:40:06Z",
+        "stage_status": "partially_implemented",
+        "mock": true
+      },
+      {
+        "step_no": 6,
+        "stage": "CHANGE_DETECTION_EWMA_CUSUM",
+        "summary": "EWMA baseline 40.2 MW. CUSUM positive shift statistic 79.67 indicates severe structural flare-up",
+        "evidence_ref": "evidence.change",
+        "timestamp": "2025-11-14T13:40:07Z",
+        "stage_status": "unbuilt",
+        "mock": true
+      },
+      {
+        "step_no": 7,
+        "stage": "SENTINEL2_CORROBORATION",
+        "summary": "Sentinel-2 optical pass acquired. Cloud cover 12%. Plume detected with high reliability (0.88)",
+        "evidence_ref": "evidence.sentinel",
+        "timestamp": "2025-11-14T13:40:08Z",
+        "stage_status": "partially_implemented",
+        "mock": true
+      },
+      {
+        "step_no": 8,
+        "stage": "BAYESIAN_FUSION",
+        "summary": "Bayesian fusion combines thermal + optical + CUSUM. Posterior hazard probability: 0.94",
+        "evidence_ref": "evidence.fusion",
+        "timestamp": "2025-11-14T13:40:09Z",
+        "stage_status": "unbuilt",
+        "mock": true
+      },
+      {
+        "step_no": 9,
+        "stage": "ROUTING_AND_PRIORITY",
+        "summary": "Triage routing: hazard path assigned. Priority score 95.0. Added to emergency review queue",
+        "evidence_ref": "evidence.routing",
+        "timestamp": "2025-11-14T13:40:10Z",
+        "stage_status": "partially_implemented",
+        "mock": true
+      },
+      {
+        "step_no": 10,
+        "stage": "HUMAN_REVIEW",
+        "summary": "Alert state: alert_triggered. Awaiting authorized human review on government console",
+        "evidence_ref": "alerts.status",
+        "timestamp": "2025-11-14T13:40:11Z",
+        "stage_status": "live",
+        "mock": false
+      },
+      {
+        "step_no": 11,
+        "stage": "TWILIO_DISPATCH",
+        "summary": "Gating enforced: public notification held in gated_awaiting_review state until authorized confirmation",
+        "evidence_ref": "trace.notification",
+        "timestamp": "2025-11-14T13:40:12Z",
+        "stage_status": "live",
+        "mock": false
+      },
+      {
+        "step_no": 12,
+        "stage": "DECISION_TRACE",
+        "summary": "Decision trace TRACE-TG-23731-86324-001 generated with complete audit DAG",
+        "evidence_ref": "trace.trace_id",
+        "timestamp": "2025-11-14T13:40:13Z",
+        "stage_status": "unbuilt",
+        "mock": true
+      }
+    ],
+    "notification": {
+      "message_sid": null,
+      "status": "gated_awaiting_review",
+      "channel": "sms",
+      "recipient": "+91-9876543210",
+      "dispatched_at": null,
+      "authorized_by": null,
+      "stage_status": "live",
+      "mock": false
+    },
+    "created_at": "2025-11-14T13:40:02Z",
+    "updated_at": "2025-11-14T13:40:13Z"
+  }
+}

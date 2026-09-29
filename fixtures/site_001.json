@@ -1,0 +1,273 @@
+{
+  "schema_version": "1.0.0",
+  "fixture_id": "SITE-001",
+  "title": "Normal Industrial (Quiet Baseline Flaring)",
+  "site": {
+    "schema_version": "1.0.0",
+    "site_id": "TG-22477-70050",
+    "lat": 22.47671,
+    "lon": 70.04968,
+    "classification": "industrial_fire",
+    "confidence": 0.95,
+    "explanation": "Inside industrial polygon (strong spatial evidence). Active on 5/5 recent passes (persistent)",
+    "severity": "moderate",
+    "is_anomalous": 0,
+    "status": "routine",
+    "first_seen": "2025-11-10T13:55:00Z",
+    "last_seen": "2025-11-14T13:40:00Z",
+    "max_frp": 39.83,
+    "brightness": 328.4,
+    "persistence": 5,
+    "consec_days": 5,
+    "duty_cycle_pct": 100.0,
+    "d_industrial_m": 0.0,
+    "d_agri_m": 970705.45,
+    "d_residential_m": 546.64,
+    "coverage_status": "covered",
+    "last_pass_date": "2025-11-14",
+    "days_since_last_pass": 0,
+    "thermal_dna": {
+      "typical_frp": 35.2,
+      "median_frp": 34.8,
+      "variability": 3.1,
+      "typical_frequency": 1.0,
+      "active_hours": [1, 2, 13, 14],
+      "typical_duration": 5.0,
+      "history_days": 5,
+      "stage_status": "unbuilt",
+      "mock": true
+    }
+  },
+  "event": {
+    "schema_version": "1.0.0",
+    "event_id": "EVT-TG-22477-70050-001",
+    "site_id": "TG-22477-70050",
+    "detection_refs": [101, 102],
+    "observed_at": "2025-11-14T13:40:00Z",
+    "latitude": 22.47671,
+    "longitude": 70.04968,
+    "frp": 35.8,
+    "brightness": 328.4,
+    "bright_ti5": 296.2,
+    "satellite": "NOAA-20",
+    "instrument": "VIIRS",
+    "daynight": "D",
+    "confidence": 95.0,
+    "provenance": {
+      "is_synthetic": 1,
+      "source": "synthetic",
+      "ingestion_batch": "seed_20251110_20251114"
+    }
+  },
+  "evidence": {
+    "schema_version": "1.0.0",
+    "rule_classification": {
+      "classification": "industrial_fire",
+      "confidence": 0.95,
+      "reasons": [
+        "Inside industrial polygon (strong spatial evidence)",
+        "Active on 5/5 recent passes (persistent)"
+      ],
+      "spatial": "polygon_containment",
+      "temporal": "persistent",
+      "intensity": "moderate",
+      "sufficiency": "sufficient",
+      "stage_status": "live"
+    },
+    "ebm_shadow": {
+      "label": "industrial_fire",
+      "status": "experimental",
+      "score": 0.94,
+      "feature_importances": {
+        "d_industrial_m": 0.52,
+        "duty_cycle_pct": 0.31,
+        "frp": 0.11,
+        "brightness": 0.06
+      },
+      "stage_status": "unbuilt",
+      "mock": true
+    },
+    "severity": {
+      "tier": "moderate",
+      "model_status": "rule_based",
+      "hysteresis_state": "steady",
+      "consecutive_passes_in_tier": 5,
+      "stage_status": "partially_implemented",
+      "mock": true
+    },
+    "change": {
+      "ewma_baseline": 34.5,
+      "cusum": 0.4,
+      "change_detected": false,
+      "gap_tolerant": true,
+      "stage_status": "unbuilt",
+      "mock": true
+    },
+    "sentinel": {
+      "available": false,
+      "cloud_pct": null,
+      "result": "none",
+      "reliability": null,
+      "file_path": null,
+      "stage_status": "partially_implemented",
+      "mock": true
+    },
+    "fusion": {
+      "prior_odds": 0.15,
+      "signals": [
+        {
+          "signal_name": "thermal_rules",
+          "lr": 6.5,
+          "reliability": 0.95,
+          "effective_lr": 6.18
+        },
+        {
+          "signal_name": "ebm_shadow",
+          "lr": 5.8,
+          "reliability": 0.85,
+          "effective_lr": 4.93
+        }
+      ],
+      "posterior": 0.12,
+      "stage_status": "unbuilt",
+      "mock": true
+    },
+    "routing": {
+      "path": "benign",
+      "reason": "Normal industrial flaring within industrial polygon. Intensity remains strictly within expected operational baseline.",
+      "priority_score": 10.5,
+      "requires_human_review": false,
+      "stage_status": "partially_implemented",
+      "mock": true
+    }
+  },
+  "review": null,
+  "trace": {
+    "schema_version": "1.0.0",
+    "trace_id": "TRACE-TG-22477-70050-001",
+    "site_id": "TG-22477-70050",
+    "alert_id": null,
+    "steps": [
+      {
+        "step_no": 1,
+        "stage": "FIRMS_INGEST",
+        "summary": "Ingested VIIRS I-band detection (FRP=35.8 MW, Lat=22.477, Lon=70.050)",
+        "evidence_ref": "event.EVT-TG-22477-70050-001",
+        "timestamp": "2025-11-14T13:40:05Z",
+        "stage_status": "live",
+        "mock": false
+      },
+      {
+        "step_no": 2,
+        "stage": "SITE_FORMATION",
+        "summary": "Associated with existing site TG-22477-70050 (distance 12m, threshold 1000m)",
+        "evidence_ref": "site.TG-22477-70050",
+        "timestamp": "2025-11-14T13:40:06Z",
+        "stage_status": "live",
+        "mock": false
+      },
+      {
+        "step_no": 3,
+        "stage": "THERMAL_DNA_OSM",
+        "summary": "Site inside industrial zone. Thermal DNA: median FRP 34.8 MW, duty cycle 100%",
+        "evidence_ref": "site.thermal_dna",
+        "timestamp": "2025-11-14T13:40:07Z",
+        "stage_status": "unbuilt",
+        "mock": true
+      },
+      {
+        "step_no": 4,
+        "stage": "CLASSIFICATION_RULE_AND_EBM",
+        "summary": "Rule classification: industrial_fire (conf: 0.95). EBM shadow: industrial_fire (score: 0.94)",
+        "evidence_ref": "evidence.rule_classification",
+        "timestamp": "2025-11-14T13:40:08Z",
+        "stage_status": "live",
+        "mock": false
+      },
+      {
+        "step_no": 5,
+        "stage": "SEVERITY_AND_HYSTERESIS",
+        "summary": "Severity evaluated at moderate tier (FRP 35.8 MW). Hysteresis state: steady",
+        "evidence_ref": "evidence.severity",
+        "timestamp": "2025-11-14T13:40:09Z",
+        "stage_status": "partially_implemented",
+        "mock": true
+      },
+      {
+        "step_no": 6,
+        "stage": "CHANGE_DETECTION_EWMA_CUSUM",
+        "summary": "EWMA baseline=34.5 MW, CUSUM=0.4. No anomalous drift or positive shift detected",
+        "evidence_ref": "evidence.change",
+        "timestamp": "2025-11-14T13:40:10Z",
+        "stage_status": "unbuilt",
+        "mock": true
+      },
+      {
+        "step_no": 7,
+        "stage": "SENTINEL2_CORROBORATION",
+        "summary": "No contemporary optical Sentinel-2 chip required for routine flaring baseline",
+        "evidence_ref": "evidence.sentinel",
+        "timestamp": "2025-11-14T13:40:11Z",
+        "stage_status": "partially_implemented",
+        "mock": true
+      },
+      {
+        "step_no": 8,
+        "stage": "BAYESIAN_FUSION",
+        "summary": "Posterior hazard probability 0.12. Confirms routine non-hazard state",
+        "evidence_ref": "evidence.fusion",
+        "timestamp": "2025-11-14T13:40:12Z",
+        "stage_status": "unbuilt",
+        "mock": true
+      },
+      {
+        "step_no": 9,
+        "stage": "ROUTING_AND_PRIORITY",
+        "summary": "Routed to benign path. Standard monitoring queue; no alert escalation",
+        "evidence_ref": "evidence.routing",
+        "timestamp": "2025-11-14T13:40:13Z",
+        "stage_status": "partially_implemented",
+        "mock": true
+      },
+      {
+        "step_no": 10,
+        "stage": "HUMAN_REVIEW",
+        "summary": "Routine event; human review not required by triage policy",
+        "evidence_ref": null,
+        "timestamp": "2025-11-14T13:40:14Z",
+        "stage_status": "live",
+        "mock": false
+      },
+      {
+        "step_no": 11,
+        "stage": "TWILIO_DISPATCH",
+        "summary": "Gating check passed: benign path generates no public emergency notifications",
+        "evidence_ref": "trace.notification",
+        "timestamp": "2025-11-14T13:40:15Z",
+        "stage_status": "live",
+        "mock": false
+      },
+      {
+        "step_no": 12,
+        "stage": "DECISION_TRACE",
+        "summary": "Decision trace TRACE-TG-22477-70050-001 sealed and logged to audit store",
+        "evidence_ref": "trace.trace_id",
+        "timestamp": "2025-11-14T13:40:16Z",
+        "stage_status": "unbuilt",
+        "mock": true
+      }
+    ],
+    "notification": {
+      "message_sid": null,
+      "status": "not_dispatched",
+      "channel": "sms",
+      "recipient": null,
+      "dispatched_at": null,
+      "authorized_by": null,
+      "stage_status": "live",
+      "mock": false
+    },
+    "created_at": "2025-11-14T13:40:05Z",
+    "updated_at": "2025-11-14T13:40:16Z"
+  }
+}
