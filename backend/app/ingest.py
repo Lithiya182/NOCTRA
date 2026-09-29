@@ -276,10 +276,5 @@ def trigger_runtime_detection(lat: float, lon: float, frp: float = 120.0,
          res.features["d_agri"], res.features["d_residential"], sid),
     )
     created = _ensure_alert(sid, severity)
-    if created and severity == "extreme":
-        from .alert_engine import dispatch_public
-        alert = dict(db.query("SELECT * FROM alerts WHERE site_id=? AND status='alert_triggered' "
-                              "ORDER BY id DESC LIMIT 1", (sid,))[0])
-        dispatch_public(alert, site)
     return {"site_id": sid, "classification": res.classification, "severity": severity,
             "alert_created": created, "explanation": res.explanation}
