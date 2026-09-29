@@ -29,29 +29,37 @@ def get_alert_reviews(alert_id: int) -> list[AlertReviewOut]:
     return alert_engine.get_alert_reviews(alert_id)
 
 
-@router.post("/{alert_id}/transition", response_model=dict, dependencies=[Depends(verify_api_key)])
-def transition(alert_id: int, body: TransitionIn) -> dict:
+@router.post("/{alert_id}/transition", response_model=dict)
+def transition(
+    alert_id: int,
+    body: TransitionIn,
+    reviewer: dict = Depends(require_reviewer),
+) -> dict:
     try:
         return alert_engine.update_alert_status(
             alert_id,
             action=body.action,
             analyst_note=body.analyst_note,
-            reviewed_by=body.reviewed_by,
+            reviewed_by=reviewer["name"],
             feedback_label=body.feedback_label,
         )
     except LookupError as exc:
         raise HTTPException(404, str(exc)) from exc
 
 
-@router.post("/{alert_id}/feedback", response_model=dict, dependencies=[Depends(verify_api_key)])
-def record_feedback(alert_id: int, body: FeedbackIn) -> dict:
+@router.post("/{alert_id}/feedback", response_model=dict)
+def record_feedback(
+    alert_id: int,
+    body: FeedbackIn,
+    reviewer: dict = Depends(require_reviewer),
+) -> dict:
     """Submit human review feedback (thumbs up / thumbs down) for alert classification."""
     try:
         return alert_engine.record_feedback(
             alert_id,
             feedback=body.feedback,
             analyst_note=body.analyst_note,
-            reviewed_by=body.reviewed_by,
+            reviewed_by=reviewer["name"],
         )
     except LookupError as exc:
         raise HTTPException(404, str(exc)) from exc
