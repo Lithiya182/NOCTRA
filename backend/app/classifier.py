@@ -156,7 +156,7 @@ def _temporal_evidence(active_on: int, observation_days: int) -> tuple[TemporalE
     return "insufficient", f"Only {observation_days} observation day(s) — insufficient temporal evidence"
 
 
-def _spatial_evidence(d_ind: float, in_industrial: bool) -> tuple[SpatialEvidence, str]:
+def _spatial_evidence(d_ind: float) -> tuple[SpatialEvidence, str]:
     """Determine spatial evidence and reason."""
     if d_ind == 0.0:
         return "polygon_containment", "Inside industrial polygon (strong spatial evidence)"
@@ -192,23 +192,10 @@ def classify(
     temporal_evidence, temporal_reason = _temporal_evidence(active_on, observation_days)
 
     # Spatial evidence
-    spatial_evidence, spatial_reason = _spatial_evidence(d_ind, d_ind == 0.0 or in_industrial)
+    spatial_evidence, spatial_reason = _spatial_evidence(d_ind)
 
     # Intensity evidence (separate from fire type)
     intensity_evidence = _frp_intensity(max_frp)
-
-    features = {
-        "frp": max_frp,
-        "brightness": max_brightness,
-        "month": month,
-        "d_industrial": d_ind,
-        "d_agri": d_agri,
-        "d_residential": d_res,
-        "duty_cycle_pct": duty_cycle,
-        "persistence": active_on,
-        "consec_days": consec,
-        "cluster_expanded": expanded,
-    }
 
     # --- Rule 1: industrial_fire ---
     # Strong evidence: polygon containment (inside industrial polygon)

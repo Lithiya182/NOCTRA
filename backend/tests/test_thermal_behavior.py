@@ -218,6 +218,32 @@ def test_duty_cycle_and_consecutive_days_formulas():
     assert duty_cycle == 80.0
 
 
+def test_compute_thermal_dna_validates_contract():
+    """Verify compute_thermal_dna validates against contracts.site.ThermalDNA."""
+    from app.feature_utils import compute_thermal_dna
+    from contracts.site import ThermalDNA
+
+    # Test on non-existent site
+    dna_empty = compute_thermal_dna("NON_EXISTENT_SITE_XYZ")
+    assert dna_empty["typical_frp"] is None
+    assert dna_empty["history_days"] == 0
+    validated_empty = ThermalDNA.model_validate(dna_empty)
+    assert validated_empty.stage_status == "live"
+    assert validated_empty.mock is False
+
+    # Test on existing site
+    site_row = db.query("SELECT site_id FROM sites LIMIT 1")
+    if site_row:
+        sid = site_row[0]["site_id"]
+        dna_site = compute_thermal_dna(sid)
+        validated_site = ThermalDNA.model_validate(dna_site)
+        assert validated_site.stage_status == "live"
+        assert validated_site.mock is False
+        if dna_site["history_days"] > 0:
+            assert validated_site.median_frp is not None
+            assert validated_site.typical_frequency is not None
+
+
 if __name__ == "__main__":
     test_frp_intensity_boundaries()
     test_frp_trend_increasing()
@@ -230,4 +256,5 @@ if __name__ == "__main__":
     test_frp_statistics_locking()
     test_expansion_magnitude_insufficient_dates()
     test_duty_cycle_and_consecutive_days_formulas()
-    print("\n=== ALL THERMAL BEHAVIOR TESTS PASSED ===")
+    test_compute_thermal_dna_validates_contract()
+    print("\n=== ALL THERMAL BEHAVIOR TESTS PASSED ===")
