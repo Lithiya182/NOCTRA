@@ -27,3 +27,16 @@ after_classifier.py
 check_osm.py
 inspect_db_temp*.py
 scratch/
+__pycache__/
+*.pyc
+.env
+backend/keys/
+data/*.db
+data/*.db-wal
+data/*.db-shm
+data/backups/
+data/imagery/
+data/firms_real.csv
+data/firms_history_*.csv
+scratch/
+audit/active_learning_log.txt
