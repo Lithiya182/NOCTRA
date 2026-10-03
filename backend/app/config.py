@@ -48,3 +48,11 @@ VAPID_KEYS_FILE = ROOT / "backend" / "keys" / "vapid.json"
 MODELS_DIR = ROOT / "backend" / "models"
 ML_MODEL_FILE = MODELS_DIR / "clf.pkl"
 CNN_MODEL_FILE = MODELS_DIR / "cnn_visual.pkl"
+
+# EWMA + CUSUM temporal change detection (temporal_cusum.py)
+EWMA_LAMBDA: float = float(os.getenv("EWMA_LAMBDA", "0.2"))
+CUSUM_K_FACTOR: float = float(os.getenv("CUSUM_K_FACTOR", "0.5"))
+CUSUM_H_FACTOR: float = float(os.getenv("CUSUM_H_FACTOR", "4.0"))
+CUSUM_MIN_HISTORY_DAYS: int = int(os.getenv("CUSUM_MIN_HISTORY_DAYS", "5"))
+CUSUM_SIGMA_FLOOR: float = float(os.getenv("CUSUM_SIGMA_FLOOR", "1.0"))
+CUSUM_CONSECUTIVE_ALARMS: int = int(os.getenv("CUSUM_CONSECUTIVE_ALARMS", "2"))
