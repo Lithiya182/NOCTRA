@@ -56,3 +56,11 @@ CUSUM_H_FACTOR: float = float(os.getenv("CUSUM_H_FACTOR", "4.0"))
 CUSUM_MIN_HISTORY_DAYS: int = int(os.getenv("CUSUM_MIN_HISTORY_DAYS", "5"))
 CUSUM_SIGMA_FLOOR: float = float(os.getenv("CUSUM_SIGMA_FLOOR", "1.0"))
 CUSUM_CONSECUTIVE_ALARMS: int = int(os.getenv("CUSUM_CONSECUTIVE_ALARMS", "2"))
+# Days back from the final observation within which an alarm is still "live".
+CUSUM_RECENT_DAYS: int = int(os.getenv("CUSUM_RECENT_DAYS", "7"))
+# Observed days to exclude from the tail when computing sigma so that an
+# active anomaly cannot inflate its own detection threshold.
+CUSUM_TAIL_DAYS: int = int(os.getenv("CUSUM_TAIL_DAYS", os.getenv("CUSUM_SIGMA_TAIL", "3")))
+CUSUM_SIGMA_TAIL: int = CUSUM_TAIL_DAYS
+# Minimum sigma as a fraction of initial baseline to prevent over-sensitivity on short histories.
+CUSUM_BASELINE_SIGMA_RATIO: float = float(os.getenv("CUSUM_BASELINE_SIGMA_RATIO", "0.05"))
