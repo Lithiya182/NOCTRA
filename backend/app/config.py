@@ -30,6 +30,63 @@ TWILIO_TO_NUMBER = os.getenv("TWILIO_TO_NUMBER", "")
 
 # Data paths
 FIRMS_REAL_CSV = DATA_DIR / "firms_real.csv"
+FIRMS_RAW_DIR = DATA_DIR / "firms_raw"
+
+# FIRMS regions (name -> bbox west,south,east,north), overridable by env
+DEFAULT_FIRMS_REGIONS: dict[str, str] = {
+    "jharia": "86.2,22.7,86.7,23.9",
+    "jamnagar": "69.8,22.3,70.3,22.6",
+    "punjab": "74.7,30.15,76.8,31.3",
+    "uttarakhand": "78.9,29.9,79.4,30.2",
+}
+
+def _parse_firms_regions() -> dict[str, str]:
+    raw = os.getenv("FIRMS_REGIONS", "").strip()
+    if not raw:
+        return dict(DEFAULT_FIRMS_REGIONS)
+    try:
+        import json
+        parsed = json.loads(raw)
+        if isinstance(parsed, dict):
+            return parsed
+    except Exception:
+        pass
+    regions = {}
+    delimiters = ";" if ";" in raw else ","
+    for part in raw.split(delimiters):
+        part = part.strip()
+        if "=" in part:
+            k, v = part.split("=", 1)
+            regions[k.strip()] = v.strip()
+        elif ":" in part:
+            k, v = part.split(":", 1)
+            regions[k.strip()] = v.strip()
+    return regions or dict(DEFAULT_FIRMS_REGIONS)
+
+FIRMS_REGIONS: dict[str, str] = _parse_firms_regions()
+
+DEFAULT_FIRMS_SOURCES: list[str] = [
+    "VIIRS_SNPP_NRT",
+    "VIIRS_NOAA20_NRT",
+    "VIIRS_NOAA21_NRT",
+]
+
+def _parse_firms_sources() -> list[str]:
+    raw = os.getenv("FIRMS_SOURCES", "").strip()
+    if not raw:
+        return list(DEFAULT_FIRMS_SOURCES)
+    try:
+        import json
+        parsed = json.loads(raw)
+        if isinstance(parsed, list):
+            return [str(s) for s in parsed]
+    except Exception:
+        pass
+    return [s.strip() for s in raw.split(",") if s.strip()] or list(DEFAULT_FIRMS_SOURCES)
+
+FIRMS_SOURCES: list[str] = _parse_firms_sources()
+FIRMS_DAY_RANGE: int = int(os.getenv("FIRMS_DAY_RANGE", "5"))
+FIRMS_SP_CUTOFF_DAYS: int = int(os.getenv("FIRMS_SP_CUTOFF_DAYS", "60"))
 
 # Rule-based classifier thresholds (locked by the PS).
 IND_DIST_M = 500          # max distance to industrial polygon -> industrial

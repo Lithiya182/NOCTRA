@@ -15,7 +15,15 @@ from apscheduler.triggers.interval import IntervalTrigger
 from dotenv import load_dotenv
 from haversine import Unit, haversine
 
-from app.config import CLUSTER_RADIUS_M, FIRMS_MAP_KEY, OSM_GEOJSON
+from app.config import (
+    CLUSTER_RADIUS_M,
+    DATA_DIR,
+    FIRMS_DAY_RANGE,
+    FIRMS_MAP_KEY,
+    FIRMS_REGIONS,
+    FIRMS_SOURCES,
+    OSM_GEOJSON,
+)
 from app import db
 from app.classifier import classify, severity_for_frp
 from app.cap import build_cap_alert
@@ -25,19 +33,15 @@ load_dotenv()
 
 logger = logging.getLogger(__name__)
 
-# Jharia bbox in FIRMS format: west,south,east,north (lon,lat,lon,lat)
-JHARIA_BBOX = "86.2,22.7,86.7,23.9"
+# Constants and backward compatibility exports
+DAY_RANGE = FIRMS_DAY_RANGE
+JHARIA_BBOX = FIRMS_REGIONS.get("jharia", "86.2,22.7,86.7,23.9")
+SOURCE = FIRMS_SOURCES[0] if FIRMS_SOURCES else "VIIRS_SNPP_NRT"
 
-# FIRMS NRT API constraints
-DAY_RANGE = 5  # max 5 for NRT products (confirm against current official docs
-# before changing -- see Phase 3/4B verification history)
-SOURCE = "VIIRS_SNPP_NRT"
+# State file to track per-region and per-source fetch dates (stored as JSON)
+STATE_FILE = DATA_DIR / "firms_last_fetch.txt"
 
-# State file to track last successful fetch date
-STATE_FILE = Path(__file__).resolve().parents[2] / "data" / "firms_last_fetch.txt"
-
-# Rate limit: 5000 transactions / 10 min. Each NRT request = 1 transaction.
-# Safe to run every 6 hours (4x/day) = 4 transactions/day, well under limit.
+# Rate limit: 5000 transactions / 10 min.
 FETCH_INTERVAL_HOURS = 6
 
 M = Unit.METERS
@@ -55,22 +59,43 @@ def get_firms_key() -> str:
     return key
 
 
-def get_last_fetch_date() -> Optional[date]:
-    """Read the last successful fetch date from state file."""
+def _read_state_dict() -> dict[str, str]:
+    """Internal helper to load the state dictionary from STATE_FILE."""
     if STATE_FILE.exists():
         try:
-            content = STATE_FILE.read_text().strip()
+            content = STATE_FILE.read_text(encoding="utf-8").strip()
             if content:
-                return datetime.fromisoformat(content).date()
+                if content.startswith("{"):
+                    return json.loads(content)
+                # Legacy single-date string
+                return {"_legacy": content}
         except Exception as e:
-            logger.warning(f"Failed to read last fetch date: {e}")
+            logger.warning(f"Failed to read state file: {e}")
+    return {}
+
+
+def get_last_fetch_date(region: str = "jharia", source: str = "VIIRS_SNPP_NRT") -> Optional[date]:
+    """Read the last successful fetch date for a given region and source."""
+    state = _read_state_dict()
+    key = f"{region}:{source}"
+    val = state.get(key) or state.get(region) or state.get("_legacy")
+    if val:
+        try:
+            return datetime.fromisoformat(val).date()
+        except Exception:
+            return None
     return None
 
 
-def set_last_fetch_date(d: date) -> None:
-    """Write the last successful fetch date to state file."""
+def set_last_fetch_date(d: date, region: str = "jharia", source: str = "VIIRS_SNPP_NRT") -> None:
+    """Write the last successful fetch date for a given region and source.
+    Persists as JSON in STATE_FILE to maintain per-region/source isolation.
+    """
+    state = _read_state_dict()
+    state[f"{region}:{source}"] = d.isoformat()
     try:
-        STATE_FILE.write_text(d.isoformat())
+        STATE_FILE.parent.mkdir(parents=True, exist_ok=True)
+        STATE_FILE.write_text(json.dumps(state, indent=2), encoding="utf-8")
     except Exception as e:
         logger.error(f"Failed to write last fetch date: {e}")
 
@@ -100,11 +125,6 @@ def load_csv(path: Path) -> tuple[list[dict], list[str]]:
                 r[key] = 0.0
     pass_dates = sorted({r["acq_date"] for r in rows if r.get("acq_date")})
     return rows, pass_dates
-
-
-def _iso(d: str, t: str) -> str:
-    t = (t or "1200").zfill(4)
-    return f"{d}T{t[:2]}:{t[2:]}:00Z"
 
 
 def _ingest_rows(
@@ -155,7 +175,6 @@ def _ingest_rows(
     sites: dict[str, dict] = {}
     taken: set[str] = set()
 
-    det_ids = [row["id"] for row in db.query("SELECT id FROM detections")]
     for idx, r in enumerate(ordered):
         lat, lon = r["latitude"], r["longitude"]
         match_sid: str | None = None
@@ -226,7 +245,10 @@ def _ingest_rows(
 
 
 def _ensure_alert(site_id: str, severity: str) -> int:
-    """Create an alert_triggered government-console entry if none is active."""
+    """Create an alert_triggered government-console entry if none is active.
+    NEVER sends notifications or calls any dispatch functions.
+    Alerts strictly remain in 'alert_triggered' until human confirmation.
+    """
     existing = db.query(
         "SELECT id FROM alerts WHERE site_id=? AND status IN ('alert_triggered','confirmed')",
         (site_id,),
@@ -246,18 +268,28 @@ def _ensure_alert(site_id: str, severity: str) -> int:
     return 1
 
 
-def fetch_new_data(since_date: date, max_date: Optional[date] = None) -> list[dict]:
+def fetch_new_data(
+    since_date: date,
+    max_date: Optional[date] = None,
+    region: str = "jharia",
+    bbox: Optional[str] = None,
+    source: str = "VIIRS_SNPP_NRT",
+) -> list[dict]:
     """
-    Fetch FIRMS NRT data for Jharia from `since_date` up to `max_date` (or today).
+    Fetch FIRMS NRT data for a region/bbox and satellite source from `since_date` up to `max_date`.
     Returns list of detection dicts.
 
     Any HTTP error or malformed response raises -- the caller (fetch_and_ingest_job)
     must NOT advance the state file if this raises, or a failed window is skipped
     forever. A valid response with zero observations is NOT an error: it continues
     to the next window rather than aborting the whole fetch.
+    Key is ALWAYS redacted in logs and error messages.
     """
     if max_date is None:
         max_date = datetime.now(timezone.utc).date()
+
+    if bbox is None:
+        bbox = FIRMS_REGIONS.get(region, JHARIA_BBOX)
 
     key = get_firms_key()
     all_rows: list[dict] = []
@@ -266,21 +298,23 @@ def fetch_new_data(since_date: date, max_date: Optional[date] = None) -> list[di
     while current_end <= max_date:
         url = (
             f"https://firms.modaps.eosdis.nasa.gov/api/area/csv/"
-            f"{key}/VIIRS_SNPP_NRT/"
-            f"{JHARIA_BBOX}/{DAY_RANGE}/{current_end.isoformat()}"
+            f"{key}/{source}/"
+            f"{bbox}/{DAY_RANGE}/{current_end.isoformat()}"
         )
         redacted_url = url.replace(key, "[KEY]")
-        logger.info(f"Fetching {current_end} (day_range={DAY_RANGE}) url={url.replace(key, '[KEY]')}")
+        logger.info(f"Fetching {current_end} (day_range={DAY_RANGE}) url={redacted_url}")
 
         try:
             resp = requests.get(url, timeout=60)
         except requests.RequestException as e:
-            raise RuntimeError(f"FIRMS request failed for window ending {current_end}: {e}") from e
+            err_msg = str(e).replace(key, "[KEY]")
+            raise RuntimeError(f"FIRMS request failed for window ending {current_end}: {err_msg}") from e
 
         if resp.status_code != 200:
+            err_body = resp.text[:200].replace(key, "[KEY]")
             raise RuntimeError(
                 f"FIRMS request failed for window ending {current_end}: "
-                f"HTTP {resp.status_code}: {resp.text[:200]}"
+                f"HTTP {resp.status_code}: {err_body}"
             )
 
         text = resp.text.strip()
@@ -295,17 +329,18 @@ def fetch_new_data(since_date: date, max_date: Optional[date] = None) -> list[di
         else:
             header = lines[0].lower()
             if "latitude" not in header or "longitude" not in header or "acq_date" not in header:
+                sample = lines[0][:200].replace(key, "[KEY]")
                 raise RuntimeError(
                     f"Malformed CSV for window ending {current_end}: "
-                    f"unexpected header: {lines[0][:200]}"
+                    f"unexpected header: {sample}"
                 )
             reader = csv.DictReader(lines)
             rows = list(reader)
-            logger.info(f"  Fetched {len(rows)} detections")
+            logger.info(f"  Fetched {len(rows)} detections for {region} ({source})")
             all_rows.extend(rows)
 
         current_end += timedelta(days=DAY_RANGE)
-        time.sleep(2)
+        time.sleep(1)
 
     return all_rows
 
@@ -320,6 +355,7 @@ def _ingest_incremental(
 ) -> dict:
     """Incremental ingestion: add new detections, update/merge sites, reclassify affected.
     Does NOT clear derived tables - updates them in place.
+    NEVER calls any notification or dispatch functions.
     """
     if not rows:
         return {"detections": 0, "sites": 0, "pass_dates": pass_dates, "polygons": len(polys), "alerts_created": 0}
@@ -354,7 +390,6 @@ def _ingest_incremental(
         "WHERE id IN ({})".format(",".join("?" * len(new_det_ids))), tuple(new_det_ids))]
 
     # --- 3. For each new detection, find or create site (incremental clustering) ---
-    # Get existing sites for proximity check
     existing_sites = [dict(r) for r in db.query(
         "SELECT site_id, lat, lon FROM sites")]
 
@@ -400,7 +435,6 @@ def _ingest_incremental(
         affected_site_ids.add(match_sid)
 
     # --- 4. Re-classify only affected sites ---
-    # Need ALL detections for classification context
     all_det_rows = [dict(r) for r in db.query(
         "SELECT latitude, longitude, bright_ti4, acq_date, frp FROM detections")]
 
@@ -443,45 +477,77 @@ def ingest_nrt_rows(rows: list[dict], pass_dates: list[str], polys: list[dict],
                                ingestion_batch=ingestion_batch)
 
 
-def fetch_and_ingest_job() -> None:
-    """Main scheduled job: fetch new data since last run and ingest."""
-    logger.info("Starting scheduled FIRMS ingestion job")
+def fetch_and_ingest_job() -> dict:
+    """Main scheduled job: loop over all regions and sources.
+    Keeps per-region/source state.
+    Never marks today as fetched: after a successful run sets the state to yesterday,
+    and on every run re-fetches the last 2 days (unique natural key index dedups).
+    A failure in one region does not block other regions.
+    """
+    logger.info("Starting scheduled FIRMS ingestion job across regions and sources")
+    today = datetime.now(timezone.utc).date()
+    yesterday = today - timedelta(days=1)
 
-    last_fetch = get_last_fetch_date()
-    if last_fetch is None:
-        since_date = datetime.now(timezone.utc).date() - timedelta(days=5)
-        logger.info(f"No previous fetch recorded. Fetching last 5 days from {since_date}")
-    else:
-        since_date = last_fetch + timedelta(days=1)
-        logger.info(f"Last fetch was {last_fetch}. Fetching from {since_date}")
+    total_detections = 0
+    total_sites_affected = 0
+    regions_succeeded: list[str] = []
+    regions_failed: list[tuple[str, str]] = []
 
-    max_date = datetime.now(timezone.utc).date()
-    if since_date > max_date:
-        logger.info("No new data to fetch")
-        return
+    polys = load_polygons(OSM_GEOJSON)
 
-    try:
-        rows = fetch_new_data(since_date, max_date)
-        if not rows:
-            logger.info("No new detections found")
-            # Still advance the state file on a valid empty fetch to avoid re-fetching
-            set_last_fetch_date(max_date)
-            return
+    for region_name, bbox in FIRMS_REGIONS.items():
+        for source in FIRMS_SOURCES:
+            job_key = f"{region_name}:{source}"
+            last_fetch = get_last_fetch_date(region_name, source)
 
-        pass_dates = sorted({r["acq_date"] for r in rows})
-        polys = load_polygons()
-        batch_id = f"firms_nrt_{datetime.now(timezone.utc).strftime('%Y%m%d_%H%M%S')}"
-        summary = ingest_nrt_rows(rows, pass_dates, polys, batch_id)
-        logger.info(f"Ingestion summary: {summary}")
+            if last_fetch is None:
+                since_date = today - timedelta(days=DAY_RANGE)
+                logger.info(f"No previous fetch recorded for {job_key}. Fetching last {DAY_RANGE} days from {since_date}")
+            else:
+                two_days_ago = today - timedelta(days=1)
+                since_date = min(last_fetch, two_days_ago)
+                logger.info(f"Last fetch for {job_key} was {last_fetch}. Fetching from {since_date}")
 
-        # Only advance the state file AFTER the entire fetch range succeeds
-        set_last_fetch_date(max_date)
-        logger.info(f"Updated last fetch date to {max_date}")
+            if since_date > today:
+                logger.info(f"No new data needed for {job_key}")
+                continue
 
-    except Exception as e:
-        logger.exception(f"Scheduled job failed: {e}")
-        # Don't re-raise -- let scheduler continue to the next interval.
-        # Do NOT advance the state file on failure.
+            try:
+                rows = fetch_new_data(
+                    since_date=since_date,
+                    max_date=today,
+                    region=region_name,
+                    bbox=bbox,
+                    source=source,
+                )
+                if rows:
+                    pass_dates = sorted({r["acq_date"] for r in rows if r.get("acq_date")})
+                    ts = datetime.now(timezone.utc).strftime("%Y%m%d_%H%M%S")
+                    batch_id = f"firms_nrt_{region_name}_{source}_{ts}"
+                    summary = ingest_nrt_rows(rows, pass_dates, polys, batch_id)
+                    total_detections += summary.get("detections", 0)
+                    total_sites_affected += summary.get("sites", 0)
+                    logger.info(f"Ingestion summary for {job_key}: {summary}")
+                else:
+                    logger.info(f"No new detections found for {job_key}")
+
+                # After successful fetch/ingest, set state to yesterday (never today)
+                set_last_fetch_date(yesterday, region_name, source)
+                regions_succeeded.append(job_key)
+
+            except Exception as e:
+                logger.exception(f"Scheduled job failed for {job_key}: {e}")
+                regions_failed.append((job_key, str(e)))
+                # A failure in one region does NOT block the others!
+                continue
+
+    return {
+        "status": "completed" if not regions_failed else "partial",
+        "succeeded": regions_succeeded,
+        "failed": regions_failed,
+        "total_detections": total_detections,
+        "total_sites": total_sites_affected,
+    }
 
 
 def create_scheduler() -> BackgroundScheduler:

@@ -36,6 +36,7 @@ data/*.db-wal
 data/*.db-shm
 data/backups/
 data/imagery/
+data/firms_raw/
 data/firms_real.csv
 data/firms_history_*.csv
 scratch/

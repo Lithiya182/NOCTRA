@@ -222,25 +222,24 @@ class TestFetchAndIngestJob:
     def test_valid_empty_fetch_advances_state(
         self, mock_firms_key, temp_state_file, mock_ingest_nrt_rows, mock_load_polygons
     ):
-        """Valid empty fetch (zero rows) advances state file."""
+        """Valid empty fetch (zero rows) advances state file to yesterday (never today)."""
         import app.firms_scheduler as sched
         
         with patch.object(sched, "fetch_new_data", return_value=[]):
-            fetch_and_ingest_job()
+            sched.fetch_and_ingest_job()
 
-        # State file should be advanced to max_date
-        from app.firms_scheduler import STATE_FILE
+        from app.firms_scheduler import STATE_FILE, get_last_fetch_date
         assert STATE_FILE.exists()
-        content = STATE_FILE.read_text().strip()
-        from datetime import datetime, timezone
-        assert content == datetime.now(timezone.utc).date().isoformat()
+        from datetime import datetime, timezone, timedelta
+        yesterday = datetime.now(timezone.utc).date() - timedelta(days=1)
+        assert get_last_fetch_date("jharia", "VIIRS_SNPP_NRT") == yesterday
 
     def test_valid_fetch_advances_state(
         self, mock_firms_key, temp_state_file, mock_ingest_nrt_rows, mock_load_polygons
     ):
-        """Valid fetch with data advances state after successful ingestion."""
+        """Valid fetch with data advances state to yesterday after successful ingestion."""
         import app.firms_scheduler as sched
-        from datetime import datetime, timezone
+        from datetime import datetime, timezone, timedelta
         
         mock_rows = [{
             "latitude": "23.0", "longitude": "86.0", "bright_ti4": "300.0",
@@ -251,12 +250,107 @@ class TestFetchAndIngestJob:
         }]
         
         with patch.object(sched, "fetch_new_data", return_value=mock_rows):
-            fetch_and_ingest_job()
+            sched.fetch_and_ingest_job()
         
-        from app.firms_scheduler import STATE_FILE
+        from app.firms_scheduler import STATE_FILE, get_last_fetch_date
         assert STATE_FILE.exists()
-        content = STATE_FILE.read_text().strip()
-        assert content == datetime.now(timezone.utc).date().isoformat()
+        yesterday = datetime.now(timezone.utc).date() - timedelta(days=1)
+        assert get_last_fetch_date("jharia", "VIIRS_SNPP_NRT") == yesterday
+
+    def test_scheduled_ingestion_never_calls_notification_or_dispatch(
+        self, mock_firms_key, temp_state_file, mock_load_polygons, monkeypatch
+    ):
+        """Scheduled ingestion MUST NEVER call any notification or dispatch functions.
+        Alerts stay 'alert_triggered' until human confirmation."""
+        import app.firms_scheduler as sched
+        from unittest.mock import MagicMock
+
+        # Mock dispatch functions to ensure they are never invoked
+        mock_dispatch = MagicMock()
+        monkeypatch.setattr("app.alert_engine.dispatch_public", mock_dispatch, raising=False)
+        monkeypatch.setattr("app.alert_engine.send_sms", mock_dispatch, raising=False)
+
+        mock_rows = [{
+            "latitude": "23.75", "longitude": "86.42", "bright_ti4": "380.0",
+            "scan": "0.4", "track": "0.4", "acq_date": "2026-09-16",
+            "acq_time": "1200", "satellite": "N", "instrument": "VIIRS",
+            "confidence": "95", "version": "2.0", "bright_ti5": "320.0",
+            "frp": "180.0", "daynight": "D"
+        }]
+
+        with patch.object(sched, "fetch_new_data", return_value=mock_rows):
+            # Run the scheduled ingestion job
+            sched.fetch_and_ingest_job()
+
+        mock_dispatch.assert_not_called()
+
+    def test_scheduler_loops_all_regions_and_sources(
+        self, mock_firms_key, temp_state_file, mock_ingest_nrt_rows, mock_load_polygons
+    ):
+        """Verify scheduler loops over all configured regions and sources."""
+        import app.firms_scheduler as sched
+        from app.config import FIRMS_REGIONS, FIRMS_SOURCES
+
+        called_configs = []
+
+        def fake_fetch(since_date, max_date=None, region="jharia", bbox=None, source="VIIRS_SNPP_NRT"):
+            called_configs.append((region, source))
+            return []
+
+        with patch.object(sched, "fetch_new_data", side_effect=fake_fetch):
+            sched.fetch_and_ingest_job()
+
+        expected_total = len(FIRMS_REGIONS) * len(FIRMS_SOURCES)
+        assert len(called_configs) == expected_total
+
+    def test_one_region_failure_does_not_block_others(
+        self, mock_firms_key, temp_state_file, mock_ingest_nrt_rows, mock_load_polygons
+    ):
+        """Failure in one region must not block the remaining regions."""
+        import app.firms_scheduler as sched
+        from app.firms_scheduler import get_last_fetch_date
+        from datetime import datetime, timezone, timedelta
+
+        def fake_fetch(since_date, max_date=None, region="jharia", bbox=None, source="VIIRS_SNPP_NRT"):
+            if region == "jharia":
+                raise RuntimeError("Jharia API error")
+            return []
+
+        with patch.object(sched, "fetch_new_data", side_effect=fake_fetch):
+            result = sched.fetch_and_ingest_job()
+
+        yesterday = datetime.now(timezone.utc).date() - timedelta(days=1)
+        # Jharia should NOT have advanced
+        assert get_last_fetch_date("jharia", "VIIRS_SNPP_NRT") is None
+        # Jamnagar SHOULD have advanced
+        assert get_last_fetch_date("jamnagar", "VIIRS_SNPP_NRT") == yesterday
+        assert result["status"] == "partial"
+
+    def test_refetches_last_two_days_on_rerun(
+        self, mock_firms_key, temp_state_file, mock_ingest_nrt_rows, mock_load_polygons
+    ):
+        """On every run, scheduler re-fetches the last 2 days even after a successful run."""
+        import app.firms_scheduler as sched
+        from app.firms_scheduler import set_last_fetch_date
+        from datetime import datetime, timezone, timedelta
+
+        today = datetime.now(timezone.utc).date()
+        yesterday = today - timedelta(days=1)
+        # Seed state with yesterday
+        set_last_fetch_date(yesterday, "jharia", "VIIRS_SNPP_NRT")
+
+        captured_since = []
+
+        def fake_fetch(since_date, max_date=None, region="jharia", bbox=None, source="VIIRS_SNPP_NRT"):
+            captured_since.append(since_date)
+            return []
+
+        with patch.object(sched, "fetch_new_data", side_effect=fake_fetch):
+            sched.fetch_and_ingest_job()
+
+        # since_date must cover at least yesterday (the last 2 days: yesterday and today)
+        assert len(captured_since) > 0
+        assert captured_since[0] <= yesterday
 
     def test_ingestion_failure_does_not_advance_state(
         self, mock_firms_key, temp_state_file, mock_load_polygons
