@@ -17,12 +17,15 @@ from haversine import Unit, haversine
 
 from app.config import (
     CLUSTER_RADIUS_M,
+    DAILY_UPDATE_HOUR_UTC,
     DATA_DIR,
+    ENABLE_FIRMS_SCHEDULER,
     FIRMS_DAY_RANGE,
     FIRMS_MAP_KEY,
     FIRMS_REGIONS,
     FIRMS_SOURCES,
     OSM_GEOJSON,
+    STALE_DAYS,
 )
 from app import db
 from app.classifier import classify, severity_for_frp
@@ -244,10 +247,33 @@ def _ingest_rows(
     }
 
 
+def _recent_max_frp_for_site(site_id: str) -> float:
+    """Return max FRP observed in the last STALE_DAYS days as of today (UTC).
+    Used for alert creation so a site with an old 150 MW flare + new 3 MW
+    detection does not create a severe/extreme alert.
+    """
+    today = datetime.now(timezone.utc).strftime("%Y-%m-%d")
+    window_start = (datetime.now(timezone.utc).date() - timedelta(days=STALE_DAYS)).isoformat()
+    rows = db.query(
+        """
+        SELECT MAX(d.frp) AS mf
+        FROM detections d
+        JOIN site_detections sd ON d.id = sd.detection_id
+        WHERE sd.site_id = ? AND d.acq_date >= ? AND d.acq_date <= ?
+        """,
+        (site_id, window_start, today),
+    )
+    if rows and rows[0]["mf"] is not None:
+        return float(rows[0]["mf"])
+    return 0.0
+
+
 def _ensure_alert(site_id: str, severity: str) -> int:
     """Create an alert_triggered government-console entry if none is active.
     NEVER sends notifications or calls any dispatch functions.
     Alerts strictly remain in 'alert_triggered' until human confirmation.
+
+    Item 8: severity passed in must come from recent FRP, not lifetime max.
     """
     existing = db.query(
         "SELECT id FROM alerts WHERE site_id=? AND status IN ('alert_triggered','confirmed')",
@@ -266,6 +292,7 @@ def _ensure_alert(site_id: str, severity: str) -> int:
          json.dumps(cap, indent=2) if isinstance(cap, dict) else cap, now, now),
     )
     return 1
+
 
 
 def fetch_new_data(
@@ -444,7 +471,9 @@ def _ingest_incremental(
         month = int(site["last_seen"][5:7])
         res = classify(site["lat"], site["lon"], all_det_rows, polys, pass_dates, month,
                        site["max_frp"], site["brightness"])
-        severity = severity_for_frp(site["max_frp"])
+        # Item 8: derive severity from recent FRP, not lifetime sites.max_frp
+        recent_frp = _recent_max_frp_for_site(sid)
+        severity = severity_for_frp(recent_frp)
         anomalous = int(severity in ("severe", "extreme"))
         db.execute(
             "UPDATE sites SET classification=?, confidence=?, explanation=?, severity=?, "
@@ -550,23 +579,61 @@ def fetch_and_ingest_job() -> dict:
     }
 
 
+def _run_daily_update() -> None:
+    """Wrapper for the scheduler: run daily_update as of today UTC.
+    NEVER calls any notification or dispatch functions.
+    """
+    from datetime import datetime, timezone
+    today = datetime.now(timezone.utc).strftime("%Y-%m-%d")
+    try:
+        from app.rolling_profile import daily_update
+        daily_update(as_of=today)
+    except Exception as exc:
+        logger.exception("daily_update failed: %s", exc)
+
+
 def create_scheduler() -> BackgroundScheduler:
-    """Create and configure the background scheduler."""
+    """Create and configure the background scheduler.
+
+    Both jobs are gated by ENABLE_FIRMS_SCHEDULER so they are off by default.
+    Neither job may call any notification or dispatch function.
+    """
+    from apscheduler.triggers.cron import CronTrigger
+
     scheduler = BackgroundScheduler(timezone="UTC")
 
-    # Add the periodic job
-    scheduler.add_job(
-        fetch_and_ingest_job,
-        trigger=IntervalTrigger(hours=FETCH_INTERVAL_HOURS),
-        id="firms_nrt_ingestion",
-        name="FIRMS NRT Jharia Ingestion",
-        replace_existing=True,
-        max_instances=1,
-        coalesce=True,
-        misfire_grace_time=3600,  # 1 hour grace
-    )
+    if ENABLE_FIRMS_SCHEDULER:
+        # 6-hourly FIRMS NRT fetch + incremental ingest
+        scheduler.add_job(
+            fetch_and_ingest_job,
+            trigger=IntervalTrigger(hours=FETCH_INTERVAL_HOURS),
+            id="firms_nrt_ingestion",
+            name="FIRMS NRT Multi-Region Ingestion",
+            replace_existing=True,
+            max_instances=1,
+            coalesce=True,
+            misfire_grace_time=3600,
+        )
+
+        # Daily profile update at DAILY_UPDATE_HOUR_UTC:00 UTC
+        scheduler.add_job(
+            _run_daily_update,
+            trigger=CronTrigger(hour=DAILY_UPDATE_HOUR_UTC, minute=0, timezone="UTC"),
+            id="daily_profile_update",
+            name="NOCTRA Daily Rolling Profile Update",
+            replace_existing=True,
+            max_instances=1,
+            coalesce=True,
+            misfire_grace_time=7200,
+        )
+    else:
+        logger.info(
+            "ENABLE_FIRMS_SCHEDULER=false: scheduler jobs not registered. "
+            "Set ENABLE_FIRMS_SCHEDULER=true to activate."
+        )
 
     return scheduler
+
 
 
 # Module-level scheduler instance (created on import)

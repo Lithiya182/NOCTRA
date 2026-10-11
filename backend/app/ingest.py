@@ -1,18 +1,17 @@
-"""Detection pipeline: load FIRMS CSV -> detections table -> site registry ->
-rule-based classification -> alerts. Runs at startup and on demand."""
 from __future__ import annotations
 
 import csv
 import json
-from datetime import datetime, timezone
+from datetime import datetime, timedelta, timezone
 from pathlib import Path
 
 from haversine import haversine, Unit
 
 from . import db
 from .classifier import classify, severity_for_frp
-from .config import CLUSTER_RADIUS_M, DATA_DIR, FIRMS_CSV, FIRMS_REAL_CSV, OSM_GEOJSON
+from .config import CLUSTER_RADIUS_M, DATA_DIR, FIRMS_CSV, FIRMS_REAL_CSV, OSM_GEOJSON, STALE_DAYS
 from .feature_utils import load_polygons
+
 
 M = Unit.METERS
 
@@ -142,7 +141,9 @@ def _ingest_rows(
         month = int(s["last_seen"][5:7])
         res = classify(s["lat"], s["lon"], all_det_rows, polys, pass_dates, month,
                        s["max_frp"], s["brightness"])
-        severity = severity_for_frp(s["max_frp"])
+        # Item 8: severity for alert creation uses recent FRP, not lifetime cluster max
+        recent_frp = _recent_max_frp_for_site(s["site_id"])
+        severity = severity_for_frp(recent_frp)
         anomalous = int(severity in ("severe", "extreme"))
         db.execute(
             "UPDATE sites SET classification=?, confidence=?, explanation=?, severity=?, "
@@ -195,8 +196,32 @@ def ingest(reset: bool = True, *, real_csv: Path | None = None) -> dict:
                         ingestion_batch="seed_20251110_20251114")
 
 
+def _recent_max_frp_for_site(site_id: str) -> float:
+    """Return max FRP for site in the last STALE_DAYS days as of today.
+    Item 8: alert severity uses recent activity, not lifetime max_frp.
+    """
+    today = datetime.now(timezone.utc).strftime("%Y-%m-%d")
+    window_start = (datetime.now(timezone.utc).date() - timedelta(days=STALE_DAYS)).isoformat()
+    rows = db.query(
+        """
+        SELECT MAX(d.frp) AS mf
+        FROM detections d
+        JOIN site_detections sd ON d.id = sd.detection_id
+        WHERE sd.site_id = ? AND d.acq_date >= ? AND d.acq_date <= ?
+        """,
+        (site_id, window_start, today),
+    )
+    if rows and rows[0]["mf"] is not None:
+        return float(rows[0]["mf"])
+    return 0.0
+
+
 def _ensure_alert(site_id: str, severity: str) -> int:
-    """Create an alert_triggered government-console entry if none is active."""
+    """Create an alert_triggered government-console entry if none is active.
+    NEVER sends notifications or calls any dispatch functions.
+    Severity must be derived from recent FRP (last STALE_DAYS), not lifetime max.
+    """
+
     existing = db.query(
         "SELECT id FROM alerts WHERE site_id=? AND status IN ('alert_triggered','confirmed')",
         (site_id,),
@@ -265,7 +290,8 @@ def trigger_runtime_detection(lat: float, lon: float, frp: float = 120.0,
         site = dict(db.query("SELECT * FROM sites WHERE site_id=?", (sid,))[0])
     month = int(today[5:7])
     res = classify(lat, lon, det_rows, load_polygons(), all_pass_dates, month, frp, brightness)
-    severity = severity_for_frp(frp)
+    # Item 8: use recent FRP for alert creation severity
+    severity = severity_for_frp(_recent_max_frp_for_site(sid))
     anomalous = int(severity in ("severe", "extreme"))
     db.execute(
         "UPDATE sites SET classification=?, confidence=?, explanation=?, severity=?, "

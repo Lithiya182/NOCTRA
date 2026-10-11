@@ -11,7 +11,8 @@ from typing import Optional
 from haversine import Unit, haversine
 
 from . import db
-from .config import OSM_GEOJSON
+from .config import OSM_GEOJSON, PROFILE_WINDOW_DAYS
+
 
 M = Unit.METERS
 
@@ -394,10 +395,31 @@ def _attach_provenance(sites: list[dict]) -> None:
         s["source"] = prov["source"]
 
 
-def compute_thermal_dna(site_id: str) -> dict:
+def compute_thermal_dna(
+    site_id: str,
+    as_of: Optional[str] = None,
+    window_days: Optional[int] = None,
+) -> dict:
     """Compute ThermalDNA behavioral fingerprint from detections for a site.
     Returns exactly the fields of contracts/site.py ThermalDNA.
+
+    Parameters
+    ----------
+    site_id:
+        Site identifier.
+    as_of:
+        Optional ISO date (YYYY-MM-DD).  Only detections on or before this
+        date are used.  When *None*, all detections are used (unchanged
+        behaviour).
+    window_days:
+        Optional trailing window in days.  When provided, only detections
+        within the *window_days* days before *as_of* (or today if *as_of* is
+        *None*) are included.  Defaults to PROFILE_WINDOW_DAYS when *as_of*
+        is given and *window_days* is *None*, so callers in rolling_profile
+        always get a windowed result; callers that omit both params get the
+        full history as before.
     """
+    # Build query
     det_rows = db.query(
         """
         SELECT d.frp, d.acq_date, d.acq_time
@@ -408,6 +430,19 @@ def compute_thermal_dna(site_id: str) -> dict:
         """,
         (site_id,),
     )
+
+    # Apply as_of / window filters without changing behaviour when both are None
+    if as_of or window_days is not None:
+        cutoff_str = (as_of or datetime.now(timezone.utc).strftime("%Y-%m-%d"))[:10]
+        cutoff = datetime.strptime(cutoff_str, "%Y-%m-%d").date()
+        det_rows = [r for r in det_rows if r["acq_date"][:10] <= cutoff_str]
+        if window_days is not None:
+            win = window_days
+        else:
+            win = PROFILE_WINDOW_DAYS
+        window_start = cutoff - timedelta(days=win)
+        det_rows = [r for r in det_rows if r["acq_date"][:10] >= window_start.isoformat()]
+
     if not det_rows:
         return {
             "typical_frp": None,
@@ -471,4 +506,5 @@ def compute_thermal_dna(site_id: str) -> dict:
         "history_days": history_days,
         "stage_status": "live",
         "mock": False,
-    }
+    }
+

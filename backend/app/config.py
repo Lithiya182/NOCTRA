@@ -121,3 +121,9 @@ CUSUM_TAIL_DAYS: int = int(os.getenv("CUSUM_TAIL_DAYS", os.getenv("CUSUM_SIGMA_T
 CUSUM_SIGMA_TAIL: int = CUSUM_TAIL_DAYS
 # Minimum sigma as a fraction of initial baseline to prevent over-sensitivity on short histories.
 CUSUM_BASELINE_SIGMA_RATIO: float = float(os.getenv("CUSUM_BASELINE_SIGMA_RATIO", "0.05"))
+
+# Rolling profile and daily learning (rolling_profile.py)
+PROFILE_WINDOW_DAYS: int = int(os.getenv("PROFILE_WINDOW_DAYS", "30"))
+STALE_DAYS: int = int(os.getenv("STALE_DAYS", "10"))
+LEARN_MIN_NEW_LABELS: int = int(os.getenv("LEARN_MIN_NEW_LABELS", "10"))
+DAILY_UPDATE_HOUR_UTC: int = int(os.getenv("DAILY_UPDATE_HOUR_UTC", "3"))
